@@ -6,16 +6,20 @@ on:
     paths:
       - '**.tex'
       - '**.sty'
-      - 'Makefile'
-      - 'tex-fmt.toml'
+      - 'mise.toml'
+      - 'mise.lock'
+      - 'mise-tasks/**'
+      - '.latexindent.yaml'
       - '.chktexrc'
       - '.github/**'
   pull_request:
     paths:
       - '**.tex'
       - '**.sty'
-      - 'Makefile'
-      - 'tex-fmt.toml'
+      - 'mise.toml'
+      - 'mise.lock'
+      - 'mise-tasks/**'
+      - '.latexindent.yaml'
       - '.chktexrc'
       - '.github/**'
   workflow_dispatch:
@@ -26,11 +30,11 @@ on:
         options: [all, full, short]
         default: all
       skills_bottom:
-        description: 'Move Skills below Experience'
+        description: 'Move Skills to bottom of the résumé'
         type: boolean
         default: false
       education_bottom:
-        description: 'Move Education below Experience'
+        description: 'Move Education to bottom of the résumé'
         type: boolean
         default: true
 
@@ -44,12 +48,10 @@ concurrency:
 env:
   # Warn when a built PDF exceeds this many pages; 0 disables.
   PAGE_BUDGET: ${{ vars.PAGE_BUDGET || '1' }}
-  # Pinned tools, each verified against its published checksum on download.
-  TECTONIC_VERSION: '0.17.0'
-  TECTONIC_SHA256: '8533d07f9ccbd7a65824b9e0459041bca34af1eb33daba48f59215593753a3b7'
-  TEXFMT_VERSION: '0.5.7'
-  TEXFMT_SHA256: 'd0e30b9b811fdc1e66a9328d5c95e9d8e585019288ca39c07f643e0796bcc4a3'
-  # chktex publishes no binaries; the pinnable artifact is Ubuntu's package.
+  # mise will not run an untrusted config; the checkout is the trust boundary.
+  MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+  # tectonic and latexindent are pinned in mise.lock. chktex publishes no
+  # binaries, so the pinnable artifact is Ubuntu's package.
   CHKTEX_VERSION: '1.7.8-1'
   CHKTEX_SHA256: '45f2a50141c982eeeda2658faacd38421f2bc7aafcafe166c47da03e37144fff'
 
@@ -60,38 +62,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache Tectonic binary
-        id: tectonic-binary
-        uses: actions/cache@v6
+      - uses: jdx/mise-action@v4
         with:
-          path: ~/.local/bin/tectonic
-          key: tectonic-bin-${{ env.TECTONIC_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+          cache: true
 
       - name: Cache Tectonic bundle
         uses: actions/cache@v6
         with:
-          path: ~/.cache/Tectonic
-          key: tectonic-bundle-${{ env.TECTONIC_VERSION }}-${{ hashFiles('**/*.tex', '**/*.sty') }}
+          path: ${{ runner.temp }}/tectonic-cache
+          key: tectonic-bundle-${{ hashFiles('mise.lock', '**/*.tex', '**/*.sty') }}
           restore-keys: |
-            tectonic-bundle-${{ env.TECTONIC_VERSION }}-
+            tectonic-bundle-
 
-      - name: Install Tectonic
-        if: steps.tectonic-binary.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          url="https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz"
-          curl --proto '=https' --tlsv1.2 -fsSL "$url" -o tectonic.tar.gz
-          echo "${TECTONIC_SHA256}  tectonic.tar.gz" | sha256sum --check --strict
-          tar -xzf tectonic.tar.gz
-          mkdir -p "$HOME/.local/bin"
-          install -m 0755 tectonic "$HOME/.local/bin/tectonic"
-          rm -f tectonic.tar.gz tectonic
-
-      - name: Check Tectonic
-        run: |
-          set -euo pipefail
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/tectonic" --version
+      - name: Point Tectonic at the cache
+        run: echo "TECTONIC_CACHE_DIR=${RUNNER_TEMP}/tectonic-cache" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
@@ -100,12 +84,11 @@ jobs:
           skills='${{ inputs.skills_bottom == true && 1 || 0 }}'
           education='${{ inputs.education_bottom == true && 1 || 0 }}'
           echo "variant=$variant skills_bottom=$skills education_bottom=$education"
+          export SKILLS_BOTTOM="$skills" EDUCATION_BOTTOM="$education"
           if [ "$variant" = "all" ]; then
-            make all SKILLS_BOTTOM="$skills" EDUCATION_BOTTOM="$education" \
-                     PAGE_BUDGET="$PAGE_BUDGET"
+            mise run all
           else
-            make VARIANT="$variant" SKILLS_BOTTOM="$skills" EDUCATION_BOTTOM="$education" \
-                 PAGE_BUDGET="$PAGE_BUDGET"
+            VARIANT="$variant" mise run build
           fi
 
       - name: Upload PDFs
@@ -123,32 +106,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache tex-fmt
-        id: texfmt
-        uses: actions/cache@v6
+      - uses: jdx/mise-action@v4
         with:
-          path: ~/.local/bin/tex-fmt
-          key: tex-fmt-${{ env.TEXFMT_VERSION }}-${{ runner.os }}-${{ runner.arch }}
-
-      - name: Install tex-fmt
-        if: steps.texfmt.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          url="https://github.com/WGUNDERWOOD/tex-fmt/releases/download/v${TEXFMT_VERSION}/tex-fmt-x86_64-linux.tar.gz"
-          curl --proto '=https' --tlsv1.2 -fsSL "$url" -o tex-fmt.tar.gz
-          echo "${TEXFMT_SHA256}  tex-fmt.tar.gz" | sha256sum --check --strict
-          tar -xzf tex-fmt.tar.gz
-          mkdir -p "$HOME/.local/bin"
-          install -m 0755 tex-fmt "$HOME/.local/bin/tex-fmt"
-          rm -f tex-fmt.tar.gz tex-fmt
+          cache: true
 
       - name: Check formatting
-        run: PATH="$HOME/.local/bin:$PATH" make fmt-check
+        run: mise run fmt-check
 
   lint:
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          cache: true
 
       - name: Install chktex
         run: |
@@ -163,7 +135,7 @@ jobs:
           chktex --version
 
       - name: Lint
-        run: make lint
+        run: mise run lint
 
   # Publishes a per-PR preview to GitHub Pages
   preview:

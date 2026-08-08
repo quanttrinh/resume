@@ -1,0 +1,23 @@
+# latexindent settings. See https://latexindent.readthedocs.io
+#
+# Sections live in \newcommand bodies *before* \begin{document}, and a .tex
+# preamble is left alone by default -- which made this whole file a no-op until
+# this was set.
+lookForPreamble:
+  .tex: 0
+
+defaultIndent: "  "
+
+modifyLineBreaks:
+  textWrapOptions:
+    # Note: counted from the text, excluding leading indent.
+    columns: 100
+    # Join a block onto one line before rewrapping it.
+    removeBlockLineBreaks: 1
+    blocksFollow:
+      # Each \item starts a block, so bullets never merge. Same as the default,
+      # restated because every bullet list depends on it.
+      other: \\\]|\\item(?:\h|\[)
+    comments:
+      # The tunables table in resumestyle.sty is column-aligned by hand.
+      wrap: 0

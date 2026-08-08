@@ -1,0 +1,104 @@
+# mise-en-place: external tools and tasks. https://mise.jdx.dev
+#
+#   mise install / mise run build / mise tasks
+#
+# mise verifies each download's checksum and SLSA provenance and locks the
+# resolved versions in mise.lock, so no sha256 pins are needed in CI.
+
+[tools]
+"github:cmhughes/latexindent.pl" = { version = "V4.0.2", exe = "latexindent" }
+
+[tools."github:tectonic-typesetting/tectonic"]
+version = "tectonic@0.17.0"
+exe = "tectonic"
+
+# Autodetection picks the glibc tarball, which wants libgraphite2 and friends
+# that ubuntu-slim does not ship. The musl build is static.
+[tools."github:tectonic-typesetting/tectonic".platforms]
+linux-x64 = { asset_pattern = "tectonic-0.17.0-x86_64-unknown-linux-musl.tar.gz" }
+
+[settings]
+lockfile = true
+
+# Runs on `mise install`, so a fresh clone gets the git hook. Skipped when the
+# hook is already ours -- `mise generate` stashes a copy at pre-commit.old on
+# every write.
+[hooks]
+postinstall = '''
+if [ -d .git ] && [ -z "${CI:-}" ] &&
+   ! grep -qs 'mise run pre-commit' .git/hooks/pre-commit; then
+  mise generate git-pre-commit --write --task=pre-commit
+fi
+'''
+
+[env]
+# Constants only. An [env] entry *wins* over the surrounding environment, so
+# VARIANT here would make `VARIANT=short mise run build` silently build `full`;
+# the overridable knobs default inside mise-tasks/build instead.
+OUT = "build"
+TEXFILES = "resume.tex resumestyle.sty"
+VARIANTS = "full short"
+
+[tasks.build]
+description = "Build one variant -> build/resume-<tag>.pdf"
+alias = "default"
+run = "./mise-tasks/build"
+
+# Sequential on purpose: every build writes the same build-vars.tex, so a
+# `depends` fan-out (which mise runs in parallel) would race.
+[tasks.all]
+description = "Build every variant"
+run = 'for v in $VARIANTS; do VARIANT="$v" mise run build; done'
+
+[tasks.short]
+description = "Build the short variant"
+env = { VARIANT = "short" }
+run = "./mise-tasks/build"
+
+[tasks.full]
+description = "Build the full variant"
+env = { VARIANT = "full" }
+run = "./mise-tasks/build"
+
+[tasks.bottom]
+description = "Build with Skills and Education below Experience"
+env = { SKILLS_BOTTOM = "1", EDUCATION_BOTTOM = "1" }
+run = "./mise-tasks/build"
+
+# --- Formatting and linting -------------------------------------------------
+
+[tasks.fmt]
+description = "Format the LaTeX sources in place"
+run = '''
+mkdir -p "$OUT"
+latexindent -m -s -l -c="$OUT" --overwriteIfDifferent $TEXFILES
+'''
+
+[tasks."fmt-check"]
+description = "Verify formatting, changing nothing"
+run = '''
+mkdir -p "$OUT"
+latexindent -m -s -l -c="$OUT" --check $TEXFILES
+'''
+
+[tasks.lint]
+description = "Lint the LaTeX sources (chktex)"
+run = '''
+if ! command -v chktex >/dev/null 2>&1; then
+  echo "chktex not found; it ships with TeX Live/MacTeX" >&2
+  exit 1
+fi
+out=$(chktex --quiet --inputfiles=0 --localrc .chktexrc $TEXFILES 2>&1 || true)
+if [ -n "$out" ]; then printf '%s\n' "$out"; exit 1; fi
+echo 'chktex: clean'
+'''
+
+[tasks.check]
+description = "fmt-check + lint, the two CI gates"
+depends = ["fmt-check", "lint"]
+
+# --- Housekeeping -----------------------------------------------------------
+
+[tasks.clean]
+description = "Remove build outputs"
+run = 'rm -rf "$OUT" build-vars.tex'
