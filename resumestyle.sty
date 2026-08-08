@@ -6,6 +6,7 @@
 %    \contact{<content>}                   one line of the contact column
 %    \makeheading                          typeset the title block
 %    \iconlink[l|r]{<icon>}{<url>}{<text>} hyperlink with a Font Awesome icon
+%    \linkmark                             small "opens elsewhere" mark
 %    \section{<title>}                     section heading + rule
 %    \entry{<left>}{<right>}               bold title / right-aligned date row
 %    \subentry{<left>}{<right>}            italic org / right-aligned location
@@ -24,14 +25,15 @@
 \ProvidesPackage{resumestyle}[2026/08/08 Reusable resume style]
 
 \RequirePackage{geometry}
-\RequirePackage{graphicx}              % \scalebox for the icon size knob
+\RequirePackage{graphicx}             % \scalebox for the icon size knob
 \RequirePackage{enumitem}
 \RequirePackage{titlesec}
 \RequirePackage{xcolor}
 \RequirePackage{etoolbox}
-\RequirePackage{xfp}                    % \fpeval, used to fit the name
-\RequirePackage{lastpage}              % page count, reported to the build log
-\RequirePackage{refcount}              % expandable \getpagerefnumber
+\RequirePackage{xfp}                  % \fpeval, used to fit the name
+\RequirePackage{lastpage}             % page count, reported to the build log
+\RequirePackage{refcount}             % expandable \getpagerefnumber
+\RequirePackage{needspace}            % keep a heading with its first lines
 \RequirePackage{fontawesome5}         % icon glyphs; no image files to ship
 \RequirePackage[hidelinks]{hyperref}
 
@@ -39,7 +41,7 @@
 %  Tunable parameters
 % ============================================================================
 % The column alignment below is deliberate, so the formatter stays out of it.
-% tex-fmt: off
+%\begin{noindent}
 
 % --- Page ------------------------------------------------------------------
 \newlength{\resumemargin}      \setlength{\resumemargin}{50pt}    % all four sides
@@ -57,12 +59,19 @@
 \newlength{\resumeruleafter}   \setlength{\resumeruleafter}{1pt}  % section rule -> body
 \newlength{\resumeheadsep}     \setlength{\resumeheadsep}{6pt}    % title block -> first section
 
+% --- Page breaking ---------------------------------------------------------
+% Lines of room an entry/project heading demands before it will start on a
+% page; too little strands the heading, too much leaves the page short.
+\newcommand{\resumeentrykeep}{4}
+\newcommand{\resumeprojectkeep}{4}
+
 % --- Type sizes ------------------------------------------------------------
 \newlength{\resumeheadingsize} \setlength{\resumeheadingsize}{16pt} % section headings
 \newlength{\resumenamesize}    \setlength{\resumenamesize}{32pt}    % name (start size if fitted)
 \newlength{\resumenamemax}     \setlength{\resumenamemax}{72pt}     % ceiling when fitted
 \newlength{\resumenamemin}     \setlength{\resumenamemin}{12pt}     % floor when fitted
-\newcommand{\resumeiconscale}{0.9}                                 % icon size, relative to text
+\newcommand{\resumeiconscale}{0.9}         % icon size, relative to text
+\newcommand{\resumeiconsep}{\,}            % gap between an icon and its text
 
 % --- Rules and dividers ----------------------------------------------------
 \newlength{\resumerulesep}     \setlength{\resumerulesep}{-8pt}     % heading -> its rule
@@ -82,7 +91,7 @@
 \newcommand{\fitnameheight}{\booltrue{resume@fitnameheight}}
 \newcommand{\nofitnameheight}{\boolfalse{resume@fitnameheight}}
 
-% tex-fmt: on
+%\end{noindent}
 
 % ============================================================================
 %  Page setup
@@ -90,7 +99,7 @@
 \geometry{a4paper,
   top=\resumemargin, bottom=\resumemargin,
   left=\resumemargin, right=\resumemargin,
-headheight=0pt, headsep=0pt, footskip=0pt}
+  headheight=0pt, headsep=0pt, footskip=0pt}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0pt}
@@ -125,6 +134,29 @@ headheight=0pt, headsep=0pt, footskip=0pt}
 % Icon glyph, nudged to sit optically level with the surrounding text.
 \newcommand{\resume@icon}[1]{{\scalebox{\resumeiconscale}{#1}}}
 
+% A small external-link mark, for linking a product name inside prose. Scaled
+% below the contact icons so it reads as punctuation, not decoration.
+\newcommand{\resumelinkmarkscale}{0.7}
+\newcommand{\resumelinkmarkkern}{-0.09em} % hugs its word tighter than a contact icon
+\newcommand{\resumelinkmarkdrop}{0}    % optical nudge, as a fraction of cap height
+\newlength{\resume@markcap}
+\newsavebox{\resume@markbox}
+\newcommand{\linkmark}{%
+  \begingroup
+  \kern\resumelinkmarkkern\relax
+  \sbox{\resume@markbox}{\scalebox{\resumelinkmarkscale}{\faIcon{external-link-alt}}}%
+  \settoheight{\resume@markcap}{X}
+  \raisebox{\dimexpr(\resume@markcap-\ht\resume@markbox)/2
+    - \resumelinkmarkdrop\resume@markcap\relax}{%
+    \usebox{\resume@markbox}}%
+  \endgroup
+}
+
+% \metric{<text>} — the quantified result inside a bullet: a figure, a delta, a
+% scale. Semantic rather than a bare \textbf, so the emphasis can be retuned
+% (to small caps, a colour, nothing at all) in one place.
+\newcommand{\metric}[1]{\textbf{#1}}
+
 % \iconlink[<side>]{<icon>}{<url>}{<text>} — <icon> is a Font Awesome command
 % such as \faGithub. Side l puts it first, anything else (default r) last; an
 % empty icon or url simply drops that part.
@@ -133,9 +165,9 @@ headheight=0pt, headsep=0pt, footskip=0pt}
   \def\resume@side{#1}%
   \def\resume@linkbody{%
     \ifdefstring{\resume@side}{l}{%
-      \ifx\relax#2\relax\else\resume@icon{#2}\,\fi #4%
+      \ifx\relax#2\relax\else\resume@icon{#2}\resumeiconsep\fi #4%
     }{%
-      #4\ifx\relax#2\relax\else\,\resume@icon{#2}\fi
+      #4\ifx\relax#2\relax\else\resumeiconsep\resume@icon{#2}\fi
     }%
   }%
   \ifx\relax#3\relax \resume@linkbody \else \href{#3}{\resume@linkbody}\fi
@@ -185,46 +217,46 @@ headheight=0pt, headsep=0pt, footskip=0pt}
     }%
   }%
   \setlength{\resume@avail}{%
-  \dimexpr\textwidth-\wd\resume@contactbox-\resumeheadgap\relax}%
+    \dimexpr\textwidth-\wd\resume@contactbox-\resumeheadgap\relax}%
 }
 
 % Largest name size that fits the free width, and optionally that height too.
 % Does nothing if the name measures zero (nothing to scale, and no divide by 0).
 \newcommand{\resume@fitnamesize}{%
   \sbox{\resume@namebox}{%
-  \bfseries\fontsize{\resume@refsize}{\resume@refsize}\selectfont\resume@name}%
+    \bfseries\fontsize{\resume@refsize}{\resume@refsize}\selectfont\resume@name}%
   \ifdim\wd\resume@namebox>\z@
-  \setlength{\dimen@}{\wd\resume@namebox}\edef\resume@w{\strip@pt\dimen@}%
-  \setlength{\dimen@}{\resume@avail}\edef\resume@a{\strip@pt\dimen@}%
-  \setlength{\resumenamesize}{\fpeval{\resume@refsize*\resume@a/\resume@w}pt}%
-  \setlength{\resume@ch}{%
-  \dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax}%
-  \ifbool{resume@fitnameheight}{%
-    \ifdim\resume@ch>\z@
-    \setlength{\dimen@}{\dimexpr\ht\resume@namebox+\dp\resume@namebox\relax}%
-    \edef\resume@hr{\strip@pt\dimen@}%
-    \edef\resume@hc{\strip@pt\resume@ch}%
-    \setlength{\dimen\tw@}{\fpeval{\resume@refsize*\resume@hc/\resume@hr}pt}%
-    \ifdim\resumenamesize>\dimen\tw@ \setlength{\resumenamesize}{\dimen\tw@}\fi
+    \setlength{\dimen@}{\wd\resume@namebox}\edef\resume@w{\strip@pt\dimen@}%
+    \setlength{\dimen@}{\resume@avail}\edef\resume@a{\strip@pt\dimen@}%
+    \setlength{\resumenamesize}{\fpeval{\resume@refsize*\resume@a/\resume@w}pt}%
+    \setlength{\resume@ch}{%
+      \dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax}%
+    \ifbool{resume@fitnameheight}{%
+      \ifdim\resume@ch>\z@
+        \setlength{\dimen@}{\dimexpr\ht\resume@namebox+\dp\resume@namebox\relax}%
+        \edef\resume@hr{\strip@pt\dimen@}%
+        \edef\resume@hc{\strip@pt\resume@ch}%
+        \setlength{\dimen\tw@}{\fpeval{\resume@refsize*\resume@hc/\resume@hr}pt}%
+        \ifdim\resumenamesize>\dimen\tw@ \setlength{\resumenamesize}{\dimen\tw@}\fi
+      \fi
+    }{}%
+    \ifdim\resumenamesize>\resumenamemax
+      \setlength{\resumenamesize}{\resumenamemax}%
     \fi
-  }{}%
-  \ifdim\resumenamesize>\resumenamemax
-  \setlength{\resumenamesize}{\resumenamemax}%
-  \fi
-  \ifdim\resumenamesize<\resumenamemin
-  \setlength{\resumenamesize}{\resumenamemin}%
-  \fi
+    \ifdim\resumenamesize<\resumenamemin
+      \setlength{\resumenamesize}{\resumenamemin}%
+    \fi
   \fi
 }
 
 % Shared height so the shorter block can be aligned inside the taller one.
 \newcommand{\resume@measureheight}{%
   \sbox{\resume@namebox}{%
-  \bfseries\fontsize{\resumenamesize}{1.2\resumenamesize}\selectfont\resume@name}%
+    \bfseries\fontsize{\resumenamesize}{1.2\resumenamesize}\selectfont\resume@name}%
   \setlength{\resume@headh}{\dimexpr\ht\resume@namebox+\dp\resume@namebox\relax}%
   \ifdim\dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax>\resume@headh
-  \setlength{\resume@headh}{%
-  \dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax}%
+    \setlength{\resume@headh}{%
+      \dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax}%
   \fi
 }
 
@@ -238,10 +270,10 @@ headheight=0pt, headsep=0pt, footskip=0pt}
   \vspace*{-\resumeheadraise}%
   \noindent
   \parbox[t][\resume@headh][\resumeheadvalign]{\resume@avail}{%
-  \usebox{\resume@namebox}}%
+    \usebox{\resume@namebox}}%
   \hfill
   \parbox[t][\resume@headh][\resumeheadvalign]{\wd\resume@contactbox}{%
-  \raggedleft\normalsize\resume@contacts}%
+    \raggedleft\normalsize\resume@contacts}%
   \par\vspace{\resumeheadsep}%
 }
 
@@ -259,13 +291,23 @@ headheight=0pt, headsep=0pt, footskip=0pt}
 
 % Entry rows: left-aligned text with a right-aligned counterpart.
 \newcommand{\resume@row}[2]{\noindent#1\hfill#2\par\vspace{\resumerowsep}}
-\newcommand{\entry}[2]{\resume@row{\textbf{#1}}{#2}}
-\newcommand{\subentry}[2]{\resume@row{\textit{#1}}{\textit{#2}}}
+
+% An entry heading stranded at the foot of a page reads as a mistake, so demand
+% room for the heading, its \subentry and the first couple of bullets; if the
+% page cannot give that, the whole block moves to the next one.
+\newcommand{\resume@keep}[1]{\Needspace*{#1\baselineskip}}
+\newcommand{\entry}[2]{%
+  \resume@keep{\resumeentrykeep}%
+  \resume@row{\textbf{#1}}{\textbf{#2}}%
+}
+% Bound to the entry above it: never break between the two.
+\newcommand{\subentry}[2]{\nopagebreak\resume@row{\textit{#1}}{\textit{#2}}\nopagebreak}
 
 \newcommand{\resumeprojectsep}{\resumebar}
 
 % \project{<title>}{<links>} — "title | links"; <links> may be empty.
 \newcommand{\project}[2]{%
+  \resume@keep{\resumeprojectkeep}%
   \noindent\textbf{#1}%
   \ifx\relax#2\relax\else\resumeprojectsep #2\fi
   \par\vspace{\resumerowsep}%

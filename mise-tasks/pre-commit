@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#MISE description="Format and lint the staged LaTeX sources (git pre-commit)"
+#
+# Run by the hook that `mise run hooks` generates, which passes the staged
+# paths in $STAGED. Mirrors the CI gates so nothing fixable here fails there.
+# Bypass a run with `git commit -n`.
+set -euo pipefail
+
+files=$(printf '%s\n' ${STAGED:-} | grep -E '\.(tex|sty)$' || true)
+[ -n "$files" ] || exit 0
+
+note() { echo "pre-commit: $*" >&2; }
+
+# `git add` below would sweep a partially staged file's unstaged edits into the
+# commit, so refuse instead.
+partial=$(git diff --name-only -- $files)
+if [ -n "$partial" ]; then
+	note "these files are staged only in part, so they cannot be"
+	note "auto-formatted without pulling in your unstaged edits:"
+	printf '  %s\n' $partial >&2
+	note "stage them fully, or run 'mise run fmt' and commit with -n."
+	exit 1
+fi
+
+mkdir -p "$OUT"
+latexindent -m -s -l -c="$OUT" --overwriteIfDifferent $files
+git add -- $files
+
+# chktex ships inside TeX Live, so a machine that only builds will not have it.
+# CI runs the lint gate regardless.
+if command -v chktex >/dev/null 2>&1; then
+	out=$(chktex --quiet --inputfiles=0 --localrc .chktexrc $files 2>&1 || true)
+	if [ -n "$out" ]; then
+		printf '%s\n' "$out" >&2
+		note "chktex found problems (see .chktexrc to suppress)"
+		exit 1
+	fi
+else
+	note "chktex not found, lint skipped (it ships with TeX Live/MacTeX)"
+fi

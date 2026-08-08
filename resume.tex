@@ -6,35 +6,38 @@
 %  is decided at the bottom of this file, driven by the build-time flags
 %  \skillsbottom / \educationbottom and the \buildvariant string.
 % ============================================================================
-\documentclass[12pt,a4paper]{article}
+\documentclass[11pt,a4paper]{article}
 
-% --- Body typeface: EB Garamond -------------------------------------------
+% --- Body typeface: XCharter ------------------------------------------------
+% A Charter derivative: large x-height, sturdy at small sizes, and it holds up
+% on screen where an old-style face like Garamond reads thin.
 % On a Unicode engine (XeTeX/LuaTeX -- what tectonic runs) the OTFs are loaded
-% directly. This avoids ebgaramond.sty, which switches on XeTeX font tracing
-% and probes EBGaramond-Initials, producing pages of harmless build warnings.
-% pdfLaTeX has no fontspec, so it falls back to the package's Type 1 route.
+% directly; pdfLaTeX has no fontspec, so it falls back to the package.
 \usepackage{iftex}
 \ifPDFTeX
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage{ebgaramond}
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{XCharter}
 \else
-\usepackage{fontspec}
-\setmainfont{EBGaramond}[
-  Extension      = .otf,
-  UprightFont    = *-Regular,
-  ItalicFont     = *-Italic,
-  BoldFont       = *-Bold,
-  BoldItalicFont = *-BoldItalic,
-  Ligatures      = TeX,
-  Numbers        = {Proportional,OldStyle},
-]
+  \usepackage{fontspec}
+  \setmainfont{XCharter}[
+    Extension      = .otf,
+    UprightFont    = *-Roman,
+    ItalicFont     = *-Italic,
+    BoldFont       = *-Bold,
+    BoldItalicFont = *-BoldItalic,
+    Ligatures      = TeX,
+  ]
 \fi
 
 \usepackage{resumestyle}
 
 % Build-time overrides written by the Makefile (safe to be absent).
 \InputIfFileExists{build-vars.tex}{}{}
+
+% Products worth linking to, defined once and reused in the bullets below.
+\newcommand{\onsemistudio}{\iconlink{\linkmark}{https://dub.sh/onsemi-studio}{onsemi Studio}}
+\newcommand{\onsemicsdt}{\iconlink{\linkmark}{https://dub.sh/onsemi-csdt}{onsemi Current Sense Design Tool}}
 
 \name{Quan Trinh}
 \contact{\iconlink{\faEnvelope}{mailto:qt.quantrinh@zohomail.com}{qt.quantrinh@zohomail.com}}
@@ -48,8 +51,9 @@
 \newcommand{\SectionSkills}{%
   \section{Skills}
 
-  \skill{Languages}{Python, TypeScript, C/C++, Bash.}
-  \skill{Technologies}{Linux, Docker, React.}
+  \skill{Languages}{Python, TypeScript, C/C++, Bash, SQL.}
+  \skill{Framework \& Technologies}{Django, React, gRPC, Protobuf, Kafka, PostgreSQL, Docker,
+    CI/CD, Linux.}
 }
 
 % ----------------------------------------------------------------------------
@@ -60,8 +64,7 @@
   \subentry{University of Waterloo}{Waterloo, Ontario}
 
   \begin{resumeitems}
-  \item Relevant courses: Software Engineering Principles, Data Structures and Data Management,
-    Database.
+    \item Relevant courses: Software Engineering Principles, Data Structures and Data Management, Database.
   \end{resumeitems}
 }
 
@@ -73,51 +76,50 @@
   \subentry{Carta}{Kitchener, Ontario}
 
   \begin{resumeitems}
-  \item TODO
+    \item Eliminated \metric{7 N+1 query patterns} in the Django KYC service, cutting the heaviest document
+    read from \metric{111 ms to 17 ms} and adverse-media loading from \metric{103 ms to 3 ms} on
+    production data.
+    \item Refactored CI pipeline, cutting median build time from \metric{17m42s to 11m06s} and compute cost
+    from \metric{3,218 to 2,546 credits} per run.
+    \item Implemented name-mismatch detection across entity, portfolio, and government-ID names, routing
+    \metric{358 flagged evaluations} for compliance review over 11 weeks.
+    \item Built a document AI extraction pipeline (transactional outbox, Kafka consumer, gRPC pre-submit
+    check) that catches expired documents before submission.
+    \item Launched Singapore Corporate Secretarial KYC across frontend staff-tool, CLI, and internal agent
+    tooling, processing \metric{48 evaluations across 103 entities} in its first month.
   \end{resumeitems}
 
   \entry{Software Developer}{Sep 2025 -- Dec 2025}
   \subentry{onsemi}{Waterloo, Ontario}
 
   \begin{resumeitems}
-  \item Implemented bare-metal CMake project management support in the onsemi Studio VS Code
-    extension 15 days ahead of schedule, enabling internal teams to adopt the extension before
-    product public release deadline.
-  \item Improved development tooling and codebase of onsemi Studio by reworking supporting
-    infrastructure and refactoring code, reducing package size by 50\% and resolving over 300
-    flagged issues.
-  \item Developed a VS Code embedded configuration GUI with React for managing project and build
-    settings, replacing existing manual JSON editing workflow and improving developer experience.
-  \item Collaborated with firmware and product teams on the onsemi Studio extension and onsemi
-    Current Sense Design Tool to deliver refinements and bug fixes, with average turnaround of
-    under one day.
-  \item Completed knowledge transfer and resolved all 12 remaining feature and improvement requests
-    for the onsemi Current Sense Design Tool within one week, finishing project handoff.
+    \item Integrated bare-metal CMake project support in \onsemistudio{} \metric{15 days ahead of schedule},
+    enabling internal teams to adopt the extension before product public release deadline.
+    \item Refactored \onsemistudio{} repo-wide, reducing package size from \metric{11 MB to 5 MB} and
+    resolving \metric{over 300 flagged issues}.
+    \item Created a VS Code embedded project configuration GUI with both VSCode Extension API and React,
+    replacing manual JSON editing workflows.
   \end{resumeitems}
 
   \entry{Full-stack Developer}{Jan 2025 -- Apr 2025}
   \subentry{onsemi}{Waterloo, Ontario}
 
   \begin{resumeitems}
-  \item Led end-to-end development of the web-based onsemi Current Sense Design Tool with FastAPI
-    Python backend and React and Next.js frontend to replace an existing Excel workflow.
-  \item Implemented reusable React GUI components and setup supporting infrastructure for an
-    in-house React and Electron-based GUI library, enabling the transition away from a Qt-based
-    library.
-  \item Built a Protobuf-to-TypeScript code generation CLI that automated mapping of device register
-    schema to UI controls, eliminated manual boilerplate and mapping errors.
-  \item Developed a Node.js dependency scanner CLI to identify development-only dependencies in the
-    Electron library, streamlining Black Duck scans and improving compliance visibility.
+    \item Launched a new FastAPI and Next.js-based \onsemicsdt{}, replacing existing Excel workflows.
+    \item Created React components and supporting infrastructure for an in-house Electron-based GUI library,
+    enabling the transition from a legacy Qt-based library.
+    \item Built a Protobuf-to-TypeScript code generation CLI using TypeScript to automate the mapping of
+    device register schema to UI controls, eliminating manual boilerplate and mapping errors.
   \end{resumeitems}
 
   \entry{AI Solution Developer}{Jun 2024 -- Aug 2024}
-  \subentry{Microsoft Azure \& Artificial Intelligence Fundamentals, Waterloo Experience Accelerate}%
+  \subentry{Microsoft Azure \& Artificial Intelligence Fundamentals, WE Accelerate}%
   {Waterloo, Ontario}
 
   \begin{resumeitems}
-  \item Designed a solution based on Azure AI and Azure Cloud services to combat online fraud
-    targeting the elderly.
-  \item Achieved AZ-900 and AI-900 certifications.
+    \item Designed a solution based on Azure AI and Azure Cloud services to combat online fraud targeting the
+    elderly.
+    \item Achieved AZ-900 and AI-900 certifications.
   \end{resumeitems}
 }
 
@@ -129,16 +131,12 @@
   {\iconlink[l]{\faGithub}{https://git.new/tet-viet-service}{Github}}
 
   \begin{resumeitems}
-  \item Built full-stack, multilingual event registration web app using SolidJS frontend and Google
-    Apps Script backend, eliminating hosting costs and enabling one-click handoff to future
-    organizers.
-  \item Implemented secure registration and check-in process with automatic emails and QR code
-    scanning for contactless check-in, handling 200+ registrations on event day.
-  \item Integrated an admin panel within Google Sheets with route-level protection settings and route
-    controls.
-  \item Created a custom build/deploy pipeline (Vite plugin, yEnc compression, CLASP integration),
-    reducing payload size by \textasciitilde20--30\% and enabling reliable deployment to the Apps
-    Script runtime.
+    \item Built full-stack, multilingual event registration web app using SolidJS and Google Apps Script,
+    enabling digitized registration process and zero-cost hosting.
+    \item Implemented secure registration and check-in process with automatic emails and QR code scanning for
+    contactless check-in, handling \metric{over 200 registrations} on event day.
+    \item Created a custom build/deploy pipeline (Vite plugin, yEnc compression, CLASP integration), reducing
+    payload size by \metric{\textasciitilde20--30\%} and flexible deployment.
   \end{resumeitems}
 }
 
