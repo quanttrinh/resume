@@ -5,8 +5,8 @@ in `resumestyle.sty` as a named length or flag.
 
 ## Build
 
-Needs [Tectonic](https://tectonic-typesetting.github.io) (`brew install tectonic`).
-`pdfinfo` (poppler) is optional — without it the page count is recorded as `?`.
+Needs [Tectonic](https://tectonic-typesetting.github.io)
+(`brew install tectonic`).
 
 ```sh
 make            # full variant  -> build/resume-full.pdf

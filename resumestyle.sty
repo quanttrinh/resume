@@ -30,6 +30,8 @@
 \RequirePackage{xcolor}
 \RequirePackage{etoolbox}
 \RequirePackage{xfp}                    % \fpeval, used to fit the name
+\RequirePackage{lastpage}              % page count, reported to the build log
+\RequirePackage{refcount}              % expandable \getpagerefnumber
 \RequirePackage{fontawesome5}         % icon glyphs; no image files to ship
 \RequirePackage[hidelinks]{hyperref}
 
@@ -302,6 +304,15 @@
   after=\vspace{\resumeblocksep},
   label=\resumelabel
 }
+
+
+% ============================================================================
+%  Build reporting
+% ============================================================================
+
+% The page count, announced to the log so `make` can record it without needing
+% a PDF tool installed. Keep the marker in step with the Makefile.
+\AtEndDocument{\typeout{RESUME-PAGES=\getpagerefnumber{LastPage}}}
 
 
 % ============================================================================

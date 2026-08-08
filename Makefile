@@ -68,9 +68,9 @@ $(PDF): $(DEPS)
 	@printf '\\renewcommand{\\builddate}{%s}\n'    '$(DATE)'    >> build-vars.tex
 	@$(if $(filter 1,$(SKILLS_BOTTOM)),printf '\\skillsbottom\n' >> build-vars.tex,:)
 	@$(if $(filter 1,$(EDUCATION_BOTTOM)),printf '\\educationbottom\n' >> build-vars.tex,:)
-	$(ENGINE) $(SRC) --outdir $(OUT)
+	$(ENGINE) --keep-logs $(SRC) --outdir $(OUT)
 	@mv $(OUT)/resume.pdf $(PDF)
-	@pages=$$(pdfinfo $(PDF) 2>/dev/null | awk '/^Pages:/{print $$2}'); \
+	@pages=$$(grep -o 'RESUME-PAGES=[0-9]*' $(OUT)/resume.log | tail -1 | cut -d= -f2); \
 	 bytes=$$(wc -c < $(PDF) | tr -d ' '); \
 	 printf '{"file":"%s","variant":"%s","skills_bottom":%s,"education_bottom":%s,"pages":"%s","bytes":%s,"date":"%s","engine":"%s"}\n' \
 	   "$$(basename $(PDF))" "$(VARIANT)" \
