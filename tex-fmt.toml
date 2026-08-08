@@ -1,0 +1,9 @@
+# tex-fmt configuration. See https://github.com/WGUNDERWOOD/tex-fmt
+#
+# Wrapping is off: the long lines here are contact URLs and \dimexpr chains that
+# read worse broken up, and tex-fmt cannot wrap them anyway. Alignment that
+# matters (the tunable-parameter block) is fenced with `% tex-fmt: off` and
+# `% tex-fmt: on` in the source.
+wrap = false
+tabsize = 2
+tabchar = "space"

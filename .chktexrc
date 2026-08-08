@@ -1,0 +1,22 @@
+# ChkTeX configuration.
+#
+# Suppressed warnings, with reasons:
+#   1  Command terminated with space   -- \faGithub{} noise; harmless here
+#   3  Enclose previous parentheses    -- fires inside \dimexpr chains
+#   8  Wrong length of dash            -- we use -- deliberately in date ranges
+#  17  Number of `)' doesn't match     -- confused by TeX group counting in .sty
+#  18  Use ` to open quotation         -- no prose quotations in this document
+#  26  Space in front of punctuation   -- aligned `key = value` blocks read better
+#  36  You should put a space...       -- conflicts with hand-tuned spacing
+#  44  User-defined command            -- the whole style file is user-defined
+CmdLine
+{
+    -n1
+    -n3
+    -n8
+    -n17
+    -n18
+    -n26
+    -n36
+    -n44
+}

@@ -1,0 +1,330 @@
+name: Build résumé
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.tex'
+      - '**.sty'
+      - 'Makefile'
+      - 'tex-fmt.toml'
+      - '.chktexrc'
+      - '.github/**'
+  pull_request:
+    paths:
+      - '**.tex'
+      - '**.sty'
+      - 'Makefile'
+      - 'tex-fmt.toml'
+      - '.chktexrc'
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Which variant to build'
+        type: choice
+        options: [all, full, short]
+        default: all
+      skills_bottom:
+        description: 'Move Skills below Experience'
+        type: boolean
+        default: false
+      education_bottom:
+        description: 'Move Education below Experience'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Warn when a built PDF exceeds this many pages; 0 disables.
+  PAGE_BUDGET: ${{ vars.PAGE_BUDGET || '1' }}
+  # Pinned tools, each verified against its published checksum on download.
+  TECTONIC_VERSION: '0.17.0'
+  TECTONIC_SHA256: '8533d07f9ccbd7a65824b9e0459041bca34af1eb33daba48f59215593753a3b7'
+  TEXFMT_VERSION: '0.5.7'
+  TEXFMT_SHA256: 'd0e30b9b811fdc1e66a9328d5c95e9d8e585019288ca39c07f643e0796bcc4a3'
+  # chktex publishes no binaries; the pinnable artifact is Ubuntu's package.
+  CHKTEX_VERSION: '1.7.8-1'
+  CHKTEX_SHA256: '45f2a50141c982eeeda2658faacd38421f2bc7aafcafe166c47da03e37144fff'
+
+jobs:
+  build:
+    needs: [format, lint]
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache Tectonic binary
+        id: tectonic-binary
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/bin/tectonic
+          key: tectonic-bin-${{ env.TECTONIC_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Cache Tectonic bundle
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/Tectonic
+          key: tectonic-bundle-${{ env.TECTONIC_VERSION }}-${{ hashFiles('**/*.tex', '**/*.sty') }}
+          restore-keys: |
+            tectonic-bundle-${{ env.TECTONIC_VERSION }}-
+
+      - name: Install Tectonic
+        if: steps.tectonic-binary.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          url="https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          curl --proto '=https' --tlsv1.2 -fsSL "$url" -o tectonic.tar.gz
+          echo "${TECTONIC_SHA256}  tectonic.tar.gz" | sha256sum --check --strict
+          tar -xzf tectonic.tar.gz
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 tectonic "$HOME/.local/bin/tectonic"
+          rm -f tectonic.tar.gz tectonic
+
+      - name: Check Tectonic
+        run: |
+          set -euo pipefail
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/tectonic" --version
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          variant='${{ inputs.variant || 'all' }}'
+          skills='${{ inputs.skills_bottom == true && 1 || 0 }}'
+          education='${{ inputs.education_bottom == true && 1 || 0 }}'
+          echo "variant=$variant skills_bottom=$skills education_bottom=$education"
+          if [ "$variant" = "all" ]; then
+            make all SKILLS_BOTTOM="$skills" EDUCATION_BOTTOM="$education" \
+                     PAGE_BUDGET="$PAGE_BUDGET"
+          else
+            make VARIANT="$variant" SKILLS_BOTTOM="$skills" EDUCATION_BOTTOM="$education" \
+                 PAGE_BUDGET="$PAGE_BUDGET"
+          fi
+
+      - name: Upload PDFs
+        uses: actions/upload-artifact@v7
+        with:
+          name: resume-${{ github.sha }}
+          path: |
+            build/*.pdf
+            build/*.json
+          if-no-files-found: error
+          retention-days: 90
+
+  format:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache tex-fmt
+        id: texfmt
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/bin/tex-fmt
+          key: tex-fmt-${{ env.TEXFMT_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install tex-fmt
+        if: steps.texfmt.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          url="https://github.com/WGUNDERWOOD/tex-fmt/releases/download/v${TEXFMT_VERSION}/tex-fmt-x86_64-linux.tar.gz"
+          curl --proto '=https' --tlsv1.2 -fsSL "$url" -o tex-fmt.tar.gz
+          echo "${TEXFMT_SHA256}  tex-fmt.tar.gz" | sha256sum --check --strict
+          tar -xzf tex-fmt.tar.gz
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 tex-fmt "$HOME/.local/bin/tex-fmt"
+          rm -f tex-fmt.tar.gz tex-fmt
+
+      - name: Check formatting
+        run: PATH="$HOME/.local/bin:$PATH" make fmt-check
+
+  lint:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install chktex
+        run: |
+          set -euo pipefail
+          deb="chktex_${CHKTEX_VERSION}_amd64.deb"
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            "https://archive.ubuntu.com/ubuntu/pool/universe/c/chktex/${deb}" -o chktex.deb
+          echo "${CHKTEX_SHA256}  chktex.deb" | sha256sum --check --strict
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends "$PWD/chktex.deb"
+          rm -f chktex.deb
+          chktex --version
+
+      - name: Lint
+        run: make lint
+
+  # Publishes a per-PR preview to GitHub Pages
+  preview:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+      pull-requests: write
+    # Serialised against the cleanup workflow: both push to gh-pages.
+    concurrency:
+      group: pages-preview
+      cancel-in-progress: false
+    env:
+      PAGES_BRANCH: gh-pages
+      PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: resume-${{ github.sha }}
+          path: preview
+
+      # A worktree keeps gh-pages in its own directory
+      - name: Publish preview to GitHub Pages
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          if git fetch -q --depth=1 origin "$PAGES_BRANCH"; then
+            git worktree add -q -B "$PAGES_BRANCH" pages "origin/$PAGES_BRANCH"
+          else
+            git worktree add -q --detach pages
+            git -C pages checkout -q --orphan "$PAGES_BRANCH"
+            git -C pages rm -rqf . --ignore-unmatch
+          fi
+
+          dest="pages/pr-${PR_NUMBER}"
+          rm -rf "$dest" && mkdir -p "$dest"
+          cp preview/*.pdf preview/*.json "$dest/"
+          touch pages/.nojekyll   # serve files as-is, no Jekyll build
+
+          python3 .github/scripts/preview_site.py pr "$dest" "$PR_NUMBER"
+          python3 .github/scripts/preview_site.py root pages
+
+          git -C pages add -A
+          git -C pages commit -qm "preview: PR #${PR_NUMBER} @ ${HEAD_SHA}" \
+            || { echo 'nothing to publish'; exit 0; }
+          git -C pages push -q origin "HEAD:$PAGES_BRANCH"
+
+      - name: Compose comment
+        env:
+          PREVIEW_BASE_URL: ${{ env.PAGES_URL }}/pr-${{ github.event.pull_request.number }}
+          PAGE_BUDGET: ${{ env.PAGE_BUDGET }}
+        run: python3 .github/scripts/preview_comment.py preview comment.md
+
+      # One comment per PR: find the previous one by its marker and edit it.
+      - name: Post or update sticky comment
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- resume-pr-preview -->")) | .id' \
+            | head -1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+              -F body=@comment.md >/dev/null
+            echo "updated comment $existing"
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -F body=@comment.md >/dev/null
+            echo 'posted new comment'
+          fi
+
+  # Publishes main's current build to the same Pages site, pinned at the top of
+  # the index so there is always a live copy of what is on main.
+  publish-latest:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    concurrency:
+      group: pages-preview
+      cancel-in-progress: false
+    env:
+      PAGES_BRANCH: gh-pages
+      HEAD_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: resume-${{ github.sha }}
+          path: latest
+
+      - name: Publish to GitHub Pages
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          if git fetch --depth=1 origin "$PAGES_BRANCH"; then
+            git worktree add -q -B "$PAGES_BRANCH" pages "origin/$PAGES_BRANCH"
+          else
+            git worktree add -q --detach pages
+            git -C pages checkout -q --orphan "$PAGES_BRANCH"
+            git -C pages rm -rqf . --ignore-unmatch
+          fi
+
+          rm -rf pages/latest && mkdir -p pages/latest
+          cp latest/*.pdf latest/*.json pages/latest/
+          touch pages/.nojekyll
+
+          python3 .github/scripts/preview_site.py release pages/latest
+          python3 .github/scripts/preview_site.py root pages
+
+          git -C pages add -A
+          git -C pages commit -qm "preview: main @ ${HEAD_SHA}" \
+            || { echo 'nothing to publish'; exit 0; }
+          git -C pages push -q origin "HEAD:$PAGES_BRANCH"
+
+  # Publishes the merged result as a rolling "latest" release
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: resume-${{ github.sha }}
+          path: build
+
+      - name: Compose release notes
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
+          COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
+          COMMIT_SHA: ${{ github.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: python3 .github/scripts/release_notes.py build notes.md
+
+      - name: Publish rolling release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest
+          name: Résumé — main @ ${{ github.sha }}
+          body_path: notes.md
+          files: build/*.pdf
+          make_latest: true

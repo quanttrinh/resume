@@ -1,0 +1,161 @@
+% ============================================================================
+%  Résumé — content only. All layout lives in resumestyle.sty.
+%
+%  Build:  make            (or: tectonic resume.tex)
+%  Each section is defined as a macro below; the order they appear on the page
+%  is decided at the bottom of this file, driven by the build-time flags
+%  \skillsbottom / \educationbottom and the \buildvariant string.
+% ============================================================================
+\documentclass[12pt,a4paper]{article}
+
+% --- Body typeface: EB Garamond -------------------------------------------
+% On a Unicode engine (XeTeX/LuaTeX -- what tectonic runs) the OTFs are loaded
+% directly. This avoids ebgaramond.sty, which switches on XeTeX font tracing
+% and probes EBGaramond-Initials, producing pages of harmless build warnings.
+% pdfLaTeX has no fontspec, so it falls back to the package's Type 1 route.
+\usepackage{iftex}
+\ifPDFTeX
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{ebgaramond}
+\else
+\usepackage{fontspec}
+\setmainfont{EBGaramond}[
+  Extension      = .otf,
+  UprightFont    = *-Regular,
+  ItalicFont     = *-Italic,
+  BoldFont       = *-Bold,
+  BoldItalicFont = *-BoldItalic,
+  Ligatures      = TeX,
+  Numbers        = {Proportional,OldStyle},
+]
+\fi
+
+\usepackage{resumestyle}
+
+% Build-time overrides written by the Makefile (safe to be absent).
+\InputIfFileExists{build-vars.tex}{}{}
+
+\name{Quan Trinh}
+\contact{\iconlink{\faEnvelope}{mailto:qt.quantrinh@zohomail.com}{qt.quantrinh@zohomail.com}}
+\contact{\iconlink{\faGithub}{https://git.new/quanttrinh}{github.com/quanttrinh}}
+\contact{\iconlink{\faLinkedin}{https://dub.sh/q-trinh}{linkedin.com/in/q-trinh}}
+
+% ============================================================================
+%  Sections
+% ============================================================================
+
+\newcommand{\SectionSkills}{%
+  \section{Skills}
+
+  \skill{Languages}{Python, TypeScript, C/C++, Bash.}
+  \skill{Technologies}{Linux, Docker, React.}
+}
+
+% ----------------------------------------------------------------------------
+\newcommand{\SectionEducation}{%
+  \section{Education}
+
+  \entry{Bachelor of Software Engineering (Honors)}{Sep 2023 -- Apr 2028}
+  \subentry{University of Waterloo}{Waterloo, Ontario}
+
+  \begin{resumeitems}
+  \item Relevant courses: Software Engineering Principles, Data Structures and Data Management,
+    Database.
+  \end{resumeitems}
+}
+
+% ----------------------------------------------------------------------------
+\newcommand{\SectionExperience}{%
+  \section{Experiences}
+
+  \entry{Software Developer}{May 2026 -- Aug 2026}
+  \subentry{Carta}{Kitchener, Ontario}
+
+  \begin{resumeitems}
+  \item TODO
+  \end{resumeitems}
+
+  \entry{Software Developer}{Sep 2025 -- Dec 2025}
+  \subentry{onsemi}{Waterloo, Ontario}
+
+  \begin{resumeitems}
+  \item Implemented bare-metal CMake project management support in the onsemi Studio VS Code
+    extension 15 days ahead of schedule, enabling internal teams to adopt the extension before
+    product public release deadline.
+  \item Improved development tooling and codebase of onsemi Studio by reworking supporting
+    infrastructure and refactoring code, reducing package size by 50\% and resolving over 300
+    flagged issues.
+  \item Developed a VS Code embedded configuration GUI with React for managing project and build
+    settings, replacing existing manual JSON editing workflow and improving developer experience.
+  \item Collaborated with firmware and product teams on the onsemi Studio extension and onsemi
+    Current Sense Design Tool to deliver refinements and bug fixes, with average turnaround of
+    under one day.
+  \item Completed knowledge transfer and resolved all 12 remaining feature and improvement requests
+    for the onsemi Current Sense Design Tool within one week, finishing project handoff.
+  \end{resumeitems}
+
+  \entry{Full-stack Developer}{Jan 2025 -- Apr 2025}
+  \subentry{onsemi}{Waterloo, Ontario}
+
+  \begin{resumeitems}
+  \item Led end-to-end development of the web-based onsemi Current Sense Design Tool with FastAPI
+    Python backend and React and Next.js frontend to replace an existing Excel workflow.
+  \item Implemented reusable React GUI components and setup supporting infrastructure for an
+    in-house React and Electron-based GUI library, enabling the transition away from a Qt-based
+    library.
+  \item Built a Protobuf-to-TypeScript code generation CLI that automated mapping of device register
+    schema to UI controls, eliminated manual boilerplate and mapping errors.
+  \item Developed a Node.js dependency scanner CLI to identify development-only dependencies in the
+    Electron library, streamlining Black Duck scans and improving compliance visibility.
+  \end{resumeitems}
+
+  \entry{AI Solution Developer}{Jun 2024 -- Aug 2024}
+  \subentry{Microsoft Azure \& Artificial Intelligence Fundamentals, Waterloo Experience Accelerate}%
+  {Waterloo, Ontario}
+
+  \begin{resumeitems}
+  \item Designed a solution based on Azure AI and Azure Cloud services to combat online fraud
+    targeting the elderly.
+  \item Achieved AZ-900 and AI-900 certifications.
+  \end{resumeitems}
+}
+
+% ----------------------------------------------------------------------------
+\newcommand{\SectionProjects}{%
+  \section{Projects}
+
+  \project{Event Registration Website for Community Lunar Celebration}%
+  {\iconlink[l]{\faGithub}{https://git.new/tet-viet-service}{Github}}
+
+  \begin{resumeitems}
+  \item Built full-stack, multilingual event registration web app using SolidJS frontend and Google
+    Apps Script backend, eliminating hosting costs and enabling one-click handoff to future
+    organizers.
+  \item Implemented secure registration and check-in process with automatic emails and QR code
+    scanning for contactless check-in, handling 200+ registrations on event day.
+  \item Integrated an admin panel within Google Sheets with route-level protection settings and route
+    controls.
+  \item Created a custom build/deploy pipeline (Vite plugin, yEnc compression, CLASP integration),
+    reducing payload size by \textasciitilde20--30\% and enabling reliable deployment to the Apps
+    Script runtime.
+  \end{resumeitems}
+}
+
+% ============================================================================
+%  Page order
+% ============================================================================
+\begin{document}
+\makeheading
+
+\ifskillsbottom{}{\SectionSkills}
+\ifeducationbottom{}{\SectionEducation}
+
+\SectionExperience
+
+\ifvariant{short}{}{\SectionProjects}
+
+\ifskillsbottom{\SectionSkills}{}
+\ifeducationbottom{\SectionEducation}{}
+
+\end{document}

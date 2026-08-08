@@ -1,0 +1,42 @@
+name: Clean up PR preview
+
+# Removes a PR's directory from the GitHub Pages site once the PR is merged or
+# closed, then regenerates the landing page so it only lists live previews.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-preview
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-slim
+    env:
+      PAGES_BRANCH: gh-pages
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Remove this PR's preview
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git fetch -q --depth=1 origin "$PAGES_BRANCH" || { echo 'no preview branch'; exit 0; }
+          git worktree add -q -B "$PAGES_BRANCH" pages "origin/$PAGES_BRANCH"
+
+          [ -d "pages/pr-${PR_NUMBER}" ] || { echo 'nothing to clean'; exit 0; }
+          rm -rf "pages/pr-${PR_NUMBER}"
+          python3 .github/scripts/preview_site.py root pages
+
+          git -C pages add -A
+          git -C pages commit -qm "preview: drop PR #${PR_NUMBER}" \
+            || { echo 'nothing to commit'; exit 0; }
+          git -C pages push -q origin "HEAD:$PAGES_BRANCH"

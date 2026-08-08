@@ -1,0 +1,326 @@
+% ============================================================================
+%  resumestyle.sty — one-column résumé style
+%
+%  Public interface (see resume.tex for usage):
+%    \name{<text>}                         name shown in the title block
+%    \contact{<content>}                   one line of the contact column
+%    \makeheading                          typeset the title block
+%    \iconlink[l|r]{<icon>}{<url>}{<text>} hyperlink with a Font Awesome icon
+%    \section{<title>}                     section heading + rule
+%    \entry{<left>}{<right>}               bold title / right-aligned date row
+%    \subentry{<left>}{<right>}            italic org / right-aligned location
+%    \project{<title>}{<links>}            "title | links" project heading
+%    \skill{<label>}{<items>}              "Label: items" line
+%    resumeitems                           bullet-list environment
+%    \ifvariant{<name>}{<then>}{<else>}    branch on \buildvariant
+%    \skillsbottom \educationbottom        move that section below Experience
+%    \ifskillsbottom / \ifeducationbottom  {<then>}{<else>} on those flags
+%
+%  Everything visual is expressed with the lengths and flags under "Tunable
+%  parameters", so the document can be re-proportioned without touching the
+%  macros below.
+% ============================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{resumestyle}[2026/08/08 Reusable resume style]
+
+\RequirePackage{geometry}
+\RequirePackage{graphicx}              % \scalebox for the icon size knob
+\RequirePackage{enumitem}
+\RequirePackage{titlesec}
+\RequirePackage{xcolor}
+\RequirePackage{etoolbox}
+\RequirePackage{xfp}                    % \fpeval, used to fit the name
+\RequirePackage{lastpage}              % page count, reported to the build log
+\RequirePackage{refcount}              % expandable \getpagerefnumber
+\RequirePackage{fontawesome5}         % icon glyphs; no image files to ship
+\RequirePackage[hidelinks]{hyperref}
+
+% ============================================================================
+%  Tunable parameters
+% ============================================================================
+% The column alignment below is deliberate, so the formatter stays out of it.
+% tex-fmt: off
+
+% --- Page ------------------------------------------------------------------
+\newlength{\resumemargin}      \setlength{\resumemargin}{50pt}    % all four sides
+
+% --- Lists -----------------------------------------------------------------
+\newlength{\resumelistindent} \setlength{\resumelistindent}{21pt} % text indent
+\newlength{\resumelabelwidth} \setlength{\resumelabelwidth}{7pt}  % bullet box
+\newlength{\resumelabelsep}   \setlength{\resumelabelsep}{7pt}    % bullet -> text
+\newcommand{\resumelabel}{\textbullet}                            % marker
+
+% --- Vertical rhythm -------------------------------------------------------
+\newlength{\resumerowsep}      \setlength{\resumerowsep}{4pt}     % between rows/bullets
+\newlength{\resumeblocksep}    \setlength{\resumeblocksep}{4pt}   % after a bullet list
+\newlength{\resumesectionsep}  \setlength{\resumesectionsep}{8pt} % above a section heading
+\newlength{\resumeruleafter}   \setlength{\resumeruleafter}{1pt}  % section rule -> body
+\newlength{\resumeheadsep}     \setlength{\resumeheadsep}{6pt}    % title block -> first section
+
+% --- Type sizes ------------------------------------------------------------
+\newlength{\resumeheadingsize} \setlength{\resumeheadingsize}{16pt} % section headings
+\newlength{\resumenamesize}    \setlength{\resumenamesize}{32pt}    % name (start size if fitted)
+\newlength{\resumenamemax}     \setlength{\resumenamemax}{72pt}     % ceiling when fitted
+\newlength{\resumenamemin}     \setlength{\resumenamemin}{12pt}     % floor when fitted
+\newcommand{\resumeiconscale}{0.9}                                 % icon size, relative to text
+
+% --- Rules and dividers ----------------------------------------------------
+\newlength{\resumerulesep}     \setlength{\resumerulesep}{-8pt}     % heading -> its rule
+\newlength{\resumerulewidth}   \setlength{\resumerulewidth}{0.6pt}  % section rule thickness
+\definecolor{resumerulecolor}{gray}{0.25}                           % \resumebar divider ink
+
+% --- Title block -----------------------------------------------------------
+\newlength{\resumeheadgap}     \setlength{\resumeheadgap}{32pt}   % name <-> contact column
+\newlength{\resumeheadraise}   \setlength{\resumeheadraise}{27pt} % lift; \topskip makes it size-independent
+\newcommand{\resumeheadvalign}{c}                                 % c/t/b within the taller block
+
+% --- Behaviour flags -------------------------------------------------------
+\newbool{resume@fitname}\booltrue{resume@fitname}             % grow name into the free width
+\newcommand{\fitname}{\booltrue{resume@fitname}}
+\newcommand{\nofitname}{\boolfalse{resume@fitname}}
+\newbool{resume@fitnameheight}\booltrue{resume@fitnameheight} % also cap by contact height
+\newcommand{\fitnameheight}{\booltrue{resume@fitnameheight}}
+\newcommand{\nofitnameheight}{\boolfalse{resume@fitnameheight}}
+
+% tex-fmt: on
+
+% ============================================================================
+%  Page setup
+% ============================================================================
+\geometry{a4paper,
+  top=\resumemargin, bottom=\resumemargin,
+  left=\resumemargin, right=\resumemargin,
+headheight=0pt, headsep=0pt, footskip=0pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\linespread{1.05}
+\raggedright
+\raggedbottom
+\pagestyle{empty}
+\hypersetup{colorlinks=false, pdfborder={0 0 0}}
+
+% ============================================================================
+%  Build-time variables and flags
+% ============================================================================
+
+% Defaults; build-vars.tex may \renewcommand these before \begin{document}.
+\providecommand{\buildvariant}{full}
+\providecommand{\builddate}{}
+
+\newcommand{\ifvariant}[3]{\ifdefstring{\buildvariant}{#1}{#2}{#3}}
+
+% Section-order flags, settable in the preamble or from build-vars.tex.
+\newbool{resume@skillsbottom}
+\newbool{resume@educationbottom}
+\newcommand{\skillsbottom}{\booltrue{resume@skillsbottom}}
+\newcommand{\educationbottom}{\booltrue{resume@educationbottom}}
+\newcommand{\ifskillsbottom}[2]{\ifbool{resume@skillsbottom}{#1}{#2}}
+\newcommand{\ifeducationbottom}[2]{\ifbool{resume@educationbottom}{#1}{#2}}
+
+% ============================================================================
+%  Inline pieces: icons, links, dividers
+% ============================================================================
+
+% Icon glyph, nudged to sit optically level with the surrounding text.
+\newcommand{\resume@icon}[1]{{\scalebox{\resumeiconscale}{#1}}}
+
+% \iconlink[<side>]{<icon>}{<url>}{<text>} — <icon> is a Font Awesome command
+% such as \faGithub. Side l puts it first, anything else (default r) last; an
+% empty icon or url simply drops that part.
+\newcommand{\iconlink}[4][r]{%
+  \begingroup
+  \def\resume@side{#1}%
+  \def\resume@linkbody{%
+    \ifdefstring{\resume@side}{l}{%
+      \ifx\relax#2\relax\else\resume@icon{#2}\,\fi #4%
+    }{%
+      #4\ifx\relax#2\relax\else\,\resume@icon{#2}\fi
+    }%
+  }%
+  \ifx\relax#3\relax \resume@linkbody \else \href{#3}{\resume@linkbody}\fi
+  \endgroup
+}
+
+\newlength{\resume@barht}
+
+% Vertical divider, cap-height tall, in \resumerulecolor.
+\newcommand{\resumebar}{%
+  \begingroup
+  \settoheight{\resume@barht}{X}%
+  \hspace{0.5em}%
+  \raisebox{-0.1\resume@barht}{%
+    \textcolor{resumerulecolor}{\rule{1pt}{1.1\resume@barht}}%
+  }%
+  \hspace{0.5em}%
+  \endgroup
+}
+
+% ============================================================================
+%  Title block
+% ============================================================================
+
+\newcommand{\resume@name}{}
+\newcommand{\name}[1]{\renewcommand{\resume@name}{#1}}
+
+\newcommand{\resume@contacts}{}
+\newcommand{\contact}[1]{\g@addto@macro\resume@contacts{#1\\}}
+
+\newsavebox{\resume@contactbox}
+\newsavebox{\resume@namebox}
+\newlength{\resume@avail}               % width left for the name
+\newlength{\resume@headh}               % height of the taller header block
+\newlength{\resume@ch}                  % height of the contact column
+\newcommand{\resume@refsize}{100}       % reference size for measuring the name
+
+% Width the contact column actually occupies (zero when there are no contacts).
+\newcommand{\resume@measurecontacts}{%
+  \ifdefempty{\resume@contacts}{%
+    \sbox{\resume@contactbox}{}%
+  }{%
+    \sbox{\resume@contactbox}{%
+      \normalsize
+      \begin{tabular}{@{}r@{}}\resume@contacts
+      \end{tabular}%
+    }%
+  }%
+  \setlength{\resume@avail}{%
+  \dimexpr\textwidth-\wd\resume@contactbox-\resumeheadgap\relax}%
+}
+
+% Largest name size that fits the free width, and optionally that height too.
+% Does nothing if the name measures zero (nothing to scale, and no divide by 0).
+\newcommand{\resume@fitnamesize}{%
+  \sbox{\resume@namebox}{%
+  \bfseries\fontsize{\resume@refsize}{\resume@refsize}\selectfont\resume@name}%
+  \ifdim\wd\resume@namebox>\z@
+  \setlength{\dimen@}{\wd\resume@namebox}\edef\resume@w{\strip@pt\dimen@}%
+  \setlength{\dimen@}{\resume@avail}\edef\resume@a{\strip@pt\dimen@}%
+  \setlength{\resumenamesize}{\fpeval{\resume@refsize*\resume@a/\resume@w}pt}%
+  \setlength{\resume@ch}{%
+  \dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax}%
+  \ifbool{resume@fitnameheight}{%
+    \ifdim\resume@ch>\z@
+    \setlength{\dimen@}{\dimexpr\ht\resume@namebox+\dp\resume@namebox\relax}%
+    \edef\resume@hr{\strip@pt\dimen@}%
+    \edef\resume@hc{\strip@pt\resume@ch}%
+    \setlength{\dimen\tw@}{\fpeval{\resume@refsize*\resume@hc/\resume@hr}pt}%
+    \ifdim\resumenamesize>\dimen\tw@ \setlength{\resumenamesize}{\dimen\tw@}\fi
+    \fi
+  }{}%
+  \ifdim\resumenamesize>\resumenamemax
+  \setlength{\resumenamesize}{\resumenamemax}%
+  \fi
+  \ifdim\resumenamesize<\resumenamemin
+  \setlength{\resumenamesize}{\resumenamemin}%
+  \fi
+  \fi
+}
+
+% Shared height so the shorter block can be aligned inside the taller one.
+\newcommand{\resume@measureheight}{%
+  \sbox{\resume@namebox}{%
+  \bfseries\fontsize{\resumenamesize}{1.2\resumenamesize}\selectfont\resume@name}%
+  \setlength{\resume@headh}{\dimexpr\ht\resume@namebox+\dp\resume@namebox\relax}%
+  \ifdim\dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax>\resume@headh
+  \setlength{\resume@headh}{%
+  \dimexpr\ht\resume@contactbox+\dp\resume@contactbox\relax}%
+  \fi
+}
+
+% \makeheading — measure, fit, then set the two blocks side by side.
+% The fit silently overrides \resumenamesize; use \nofitname to keep it fixed.
+\newcommand{\makeheading}{%
+  \resume@measurecontacts
+  \ifboolexpr{bool {resume@fitname} and not test {\ifdefempty{\resume@name}}}%
+  {\resume@fitnamesize}{}%
+  \resume@measureheight
+  \vspace*{-\resumeheadraise}%
+  \noindent
+  \parbox[t][\resume@headh][\resumeheadvalign]{\resume@avail}{%
+  \usebox{\resume@namebox}}%
+  \hfill
+  \parbox[t][\resume@headh][\resumeheadvalign]{\wd\resume@contactbox}{%
+  \raggedleft\normalsize\resume@contacts}%
+  \par\vspace{\resumeheadsep}%
+}
+
+% ============================================================================
+%  Block elements
+% ============================================================================
+
+% Sections: unnumbered heading with a full-width rule beneath.
+\setcounter{secnumdepth}{0}
+\titleformat{\section}
+{\bfseries\fontsize{\resumeheadingsize}{1.2\resumeheadingsize}\selectfont}
+{}{0pt}{}
+[\vspace{\resumerulesep}\noindent\rule{\textwidth}{\resumerulewidth}]
+\titlespacing*{\section}{0pt}{\resumesectionsep}{\resumeruleafter}
+
+% Entry rows: left-aligned text with a right-aligned counterpart.
+\newcommand{\resume@row}[2]{\noindent#1\hfill#2\par\vspace{\resumerowsep}}
+\newcommand{\entry}[2]{\resume@row{\textbf{#1}}{#2}}
+\newcommand{\subentry}[2]{\resume@row{\textit{#1}}{\textit{#2}}}
+
+\newcommand{\resumeprojectsep}{\resumebar}
+
+% \project{<title>}{<links>} — "title | links"; <links> may be empty.
+\newcommand{\project}[2]{%
+  \noindent\textbf{#1}%
+  \ifx\relax#2\relax\else\resumeprojectsep #2\fi
+  \par\vspace{\resumerowsep}%
+}
+
+\newcommand{\skill}[2]{\noindent\textbf{#1:} #2\par\vspace{\resumerowsep}}
+
+% List geometry lives in the lengths above; both list kinds are set from them,
+% so plain itemize and resumeitems can never drift apart.
+\newlist{resumeitems}{itemize}{1}
+
+\setlist[itemize]{
+  leftmargin=\resumelistindent,
+  labelwidth=\resumelabelwidth,
+  labelsep=\resumelabelsep,
+  labelindent=0pt,
+  align=left,
+  topsep=0pt,
+  partopsep=0pt,
+  parsep=0pt,
+  itemsep=\resumerowsep,
+  label=\resumelabel
+}
+
+\setlist[resumeitems]{
+  leftmargin=\resumelistindent,
+  labelwidth=\resumelabelwidth,
+  labelsep=\resumelabelsep,
+  labelindent=0pt,
+  align=left,
+  topsep=0pt,
+  partopsep=0pt,
+  parsep=0pt,
+  itemsep=\resumerowsep,
+  after=\vspace{\resumeblocksep},
+  label=\resumelabel
+}
+
+% ============================================================================
+%  Build reporting
+% ============================================================================
+
+% The page count, announced to the log so `make` can record it without needing
+% a PDF tool installed. Keep the marker in step with the Makefile.
+\AtEndDocument{\typeout{RESUME-PAGES=\getpagerefnumber{LastPage}}}
+
+% ============================================================================
+%  PDF metadata
+% ============================================================================
+\AtBeginDocument{%
+  \hypersetup{%
+    pdftitle={\resume@name{} — résumé (\buildvariant)},
+    pdfauthor={\resume@name},
+    pdfsubject={Built \builddate},
+  }%
+}
+
+\endinput
