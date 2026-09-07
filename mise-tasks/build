@@ -1,24 +1,55 @@
 #!/usr/bin/env bash
 #MISE description="Build one variant -> build/resume-<tag>.pdf"
 #
-# Adding a knob means: a default below, a line in build-vars.tex, and a
-# \providecommand in resumestyle.sty.
+# Options may be passed explicitly or supplied through environment variables.
 set -euo pipefail
 
-# Not in mise.toml's [env], which would *override* the caller's environment
-# rather than default it: `VARIANT=short mise run build`.
 ENGINE="${ENGINE:-tectonic}"
 VARIANT="${VARIANT:-full}"
 DATE="${DATE:-$(date +%Y-%m-%d)}"
 PAGE_BUDGET="${PAGE_BUDGET:-1}"     # 0 disables the length warning
+FIRST_PAGE_ONLY="${FIRST_PAGE_ONLY:-0}" # 1 keeps only the first PDF page
 SKILLS_BOTTOM="${SKILLS_BOTTOM:-0}" # 1 pushes that section below Experience
 EDUCATION_BOTTOM="${EDUCATION_BOTTOM:-0}"
 OUT="${OUT:-build}"
+
+usage() {
+	cat <<'EOF'
+Usage: mise-tasks/build [options]
+
+Options override the corresponding environment variables:
+	--variant NAME             full or short
+	--skills-bottom            Move Skills below Experience
+	--education-bottom        Move Education below Experience
+	--first-page-only         Keep only the first PDF page
+	--page-budget N            Warn above N pages; 0 disables
+	--engine COMMAND           TeX engine
+	--date YYYY-MM-DD          Build date
+	--out DIRECTORY            Output directory
+	-h, --help                 Show this help
+EOF
+}
+
+while (($#)); do
+	case "$1" in
+		--variant) VARIANT="$2"; shift 2 ;;
+		--skills-bottom) SKILLS_BOTTOM=1; shift ;;
+		--education-bottom) EDUCATION_BOTTOM=1; shift ;;
+		--first-page-only) FIRST_PAGE_ONLY=1; shift ;;
+		--page-budget) PAGE_BUDGET="$2"; shift 2 ;;
+		--engine) ENGINE="$2"; shift 2 ;;
+		--date) DATE="$2"; shift 2 ;;
+		--out) OUT="$2"; shift 2 ;;
+		-h|--help) usage; exit 0 ;;
+		*) printf 'error: unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+	esac
+done
 
 # Suffixed so variants never overwrite each other.
 tag="$VARIANT"
 [ "$SKILLS_BOTTOM" = "1" ] && tag="$tag-skillsbottom"
 [ "$EDUCATION_BOTTOM" = "1" ] && tag="$tag-edubottom"
+[ "$FIRST_PAGE_ONLY" = "1" ] && tag="$tag-onepage"
 
 pdf="$OUT/resume-$tag.pdf"
 manifest="$OUT/resume-$tag.json"
@@ -30,6 +61,7 @@ mkdir -p "$OUT"
 	printf '\\renewcommand{\\builddate}{%s}\n' "$DATE"
 	[ "$SKILLS_BOTTOM" = "1" ] && printf '\\skillsbottom\n'
 	[ "$EDUCATION_BOTTOM" = "1" ] && printf '\\educationbottom\n'
+	[ "$FIRST_PAGE_ONLY" = "1" ] && printf '\\firstpageonly\n'
 	true
 } > build-vars.tex
 
@@ -42,9 +74,9 @@ pages="${pages:-?}"
 bytes=$(wc -c < "$pdf" | tr -d ' ')
 
 bool() { [ "$1" = "1" ] && echo true || echo false; }
-printf '{"file":"%s","variant":"%s","skills_bottom":%s,"education_bottom":%s,"pages":"%s","bytes":%s,"date":"%s","engine":"%s"}\n' \
+printf '{"file":"%s","variant":"%s","skills_bottom":%s,"education_bottom":%s,"first_page_only":%s,"pages":"%s","bytes":%s,"date":"%s","engine":"%s"}\n' \
 	"$(basename "$pdf")" "$VARIANT" \
-	"$(bool "$SKILLS_BOTTOM")" "$(bool "$EDUCATION_BOTTOM")" \
+	"$(bool "$SKILLS_BOTTOM")" "$(bool "$EDUCATION_BOTTOM")" "$(bool "$FIRST_PAGE_ONLY")" \
 	"$pages" "$bytes" "$DATE" "$("$ENGINE" --version | head -1)" \
 	> "$manifest"
 
@@ -54,4 +86,4 @@ if [ "$PAGE_BUDGET" != "0" ] && [ "$pages" != "?" ] && [ "$pages" -gt "$PAGE_BUD
 	echo "warning: $msg" >&2
 fi
 
-echo "-> $pdf  (variant=$VARIANT, date=$DATE, skills_bottom=$SKILLS_BOTTOM, education_bottom=$EDUCATION_BOTTOM)"
+echo "-> $pdf"

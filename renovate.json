@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["github-actions", "mise"],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "schedule": ["weekly"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "commitMessagePrefix": "ci"
+    },
+    {
+      "matchManagers": ["mise"],
+      "groupName": "mise tools",
+      "commitMessagePrefix": "build"
+    }
+  ]
+}

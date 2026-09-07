@@ -44,26 +44,6 @@ description = "Build one variant -> build/resume-<tag>.pdf"
 alias = "default"
 run = "./mise-tasks/build"
 
-# Sequential on purpose: every build writes the same build-vars.tex, so a
-# `depends` fan-out (which mise runs in parallel) would race.
-[tasks.all]
-description = "Build every variant"
-run = 'for v in $VARIANTS; do VARIANT="$v" mise run build; done'
-
-[tasks.short]
-description = "Build the short variant"
-env = { VARIANT = "short" }
-run = "./mise-tasks/build"
-
-[tasks.full]
-description = "Build the full variant"
-env = { VARIANT = "full" }
-run = "./mise-tasks/build"
-
-[tasks.bottom]
-description = "Build with Skills and Education below Experience"
-env = { SKILLS_BOTTOM = "1", EDUCATION_BOTTOM = "1" }
-run = "./mise-tasks/build"
 
 # --- Formatting and linting -------------------------------------------------
 

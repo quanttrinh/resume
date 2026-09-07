@@ -8,11 +8,6 @@
 % ============================================================================
 \documentclass[11pt,a4paper]{article}
 
-% --- Body typeface: XCharter ------------------------------------------------
-% A Charter derivative: large x-height, sturdy at small sizes, and it holds up
-% on screen where an old-style face like Garamond reads thin.
-% On a Unicode engine (XeTeX/LuaTeX -- what tectonic runs) the OTFs are loaded
-% directly; pdfLaTeX has no fontspec, so it falls back to the package.
 \usepackage{iftex}
 \ifPDFTeX
   \usepackage[T1]{fontenc}
@@ -38,6 +33,7 @@
 % Products worth linking to, defined once and reused in the bullets below.
 \newcommand{\onsemistudio}{\iconlink{\linkmark}{https://dub.sh/onsemi-studio}{onsemi Studio}}
 \newcommand{\onsemicsdt}{\iconlink{\linkmark}{https://dub.sh/onsemi-csdt}{onsemi Current Sense Design Tool}}
+\newcommand{\cartakyc}{\iconlink{\linkmark}{https://dub.sh/carta-kyc}{Carta KYC}}
 
 \name{Quan Trinh}
 \contact{\iconlink{\faEnvelope}{mailto:qt.quantrinh@zohomail.com}{qt.quantrinh@zohomail.com}}
@@ -49,19 +45,20 @@
 % ============================================================================
 
 \newcommand{\SectionSkills}{%
-  \section{Skills}
+  \section{SKILLS}
 
   \skill{Languages}{Python, TypeScript, C/C++, Bash, SQL.}
-  \skill{Framework \& Technologies}{Django, React, gRPC, Protobuf, Kafka, PostgreSQL, Docker,
+  \skill{Frameworks \& Technologies}{Django, React, gRPC, Protobuf, Kafka, Docker,
     CI/CD, Linux.}
+  \vspace{\resumeblocksep}
 }
 
 % ----------------------------------------------------------------------------
 \newcommand{\SectionEducation}{%
-  \section{Education}
+  \section{EDUCATION}
 
-  \entry{Bachelor of Software Engineering (Honors)}{Sep 2023 -- Apr 2028}
-  \subentry{University of Waterloo}{Waterloo, Ontario}
+  \entry{University of Waterloo}{}{Waterloo, Ontario}
+  \subentry{Bachelor of Software Engineering (Honors)}{Sep 2023 -- Apr 2028}
 
   \begin{resumeitems}
     \item Relevant courses: Software Engineering Principles, Data Structures and Data Management, Database.
@@ -70,49 +67,54 @@
 
 % ----------------------------------------------------------------------------
 \newcommand{\SectionExperience}{%
-  \section{Experiences}
+  \section{EXPERIENCE}
 
-  \entry{Software Developer}{May 2026 -- Aug 2026}
+  \entry{Software Developer}{\cartakyc}{May 2026 -- Aug 2026}
   \subentry{Carta}{Kitchener, Ontario}
 
   \begin{resumeitems}
-    \item Eliminated \metric{7 N+1 query patterns} in the Django KYC service, cutting the heaviest document
-    read from \metric{111 ms to 17 ms} and adverse-media loading from \metric{103 ms to 3 ms} on
-    production data.
-    \item Refactored CI pipeline, cutting median build time from \metric{17m42s to 11m06s} and compute cost
-    from \metric{3,218 to 2,546 credits} per run.
-    \item Implemented name-mismatch detection across entity, portfolio, and government-ID names, routing
-    \metric{358 flagged evaluations} for compliance review over 11 weeks.
-    \item Built a document AI extraction pipeline (transactional outbox, Kafka consumer, gRPC pre-submit
-    check) that catches expired documents before submission.
-    \item Launched Singapore Corporate Secretarial KYC across frontend staff-tool, CLI, and internal agent
-    tooling, processing \metric{48 evaluations across 103 entities} in its first month.
+    \item Launched Singapore Corporate Secretarial KYC across the Django service, gRPC API, frontend, CLI,
+    and Claude skills, used for \metric{48 evaluations} across \metric{103 entities} in the first
+    month.
+    \item Built name-mismatch detection across entity, portfolio, and government-ID names, screening
+    \metric{15,402 evaluations} and routing \metric{358 flagged evaluations} for compliance review over
+    11 weeks.
+    \item Restructured CI into a path-filtered pipeline and dynamically sized test workers, reducing the
+    median build time from \metric{15m57s to 8m52s} and credits per run from \metric{3,251 to 1,981}.
+    \item Implemented a document validation pipeline with AI field extraction across the Django service, gRPC
+    API, and Kafka events, enabling form pre-submit warnings and post-submit review.
+    \item Eliminated multiple N+1 query patterns in the Django KYC service, cutting the heaviest document
+    read from \metric{111 ms to 17 ms} and adverse-media loading from \metric{103 ms to 3 ms}.
+    \item Hardened the KYC service Docker image by auditing dependencies and using a non-root, read-only
+    base, reducing vulnerabilities from \metric{163 to 20} and image size from \metric{389 MB to 264
+      MB}.
   \end{resumeitems}
 
-  \entry{Software Developer}{Sep 2025 -- Dec 2025}
+  \entry{Software Developer}{\onsemistudio}{Sep 2025 -- Dec 2025}
   \subentry{onsemi}{Waterloo, Ontario}
 
   \begin{resumeitems}
-    \item Integrated bare-metal CMake project support in \onsemistudio{} \metric{15 days ahead of schedule},
-    enabling internal teams to adopt the extension before product public release deadline.
-    \item Refactored \onsemistudio{} repo-wide, reducing package size from \metric{11 MB to 5 MB} and
-    resolving \metric{over 300 flagged issues}.
-    \item Created a VS Code embedded project configuration GUI with both VSCode Extension API and React,
+    \item Integrated bare-metal CMake project support in onsemi Studio, \metric{15 days} ahead of schedule,
+    enabling internal teams to adopt the extension before the public release deadline.
+    \item Refactored onsemi Studio repo-wide, reducing package size from \metric{11 MB to 5 MB} and resolving
+    \metric{over 300 flagged issues}.
+    \item Created a VS Code embedded project configuration GUI with VS Code Extension API and React,
     replacing manual JSON editing workflows.
   \end{resumeitems}
 
-  \entry{Full-stack Developer}{Jan 2025 -- Apr 2025}
+  \entry{Full-Stack Developer}{\onsemicsdt}{Jan 2025 -- Apr 2025}
   \subentry{onsemi}{Waterloo, Ontario}
 
   \begin{resumeitems}
-    \item Launched a new FastAPI and Next.js-based \onsemicsdt{}, replacing existing Excel workflows.
+    \item Launched a new FastAPI and Next.js-based onsemi Current Sense Design Tool, replacing the existing
+    Excel workflows.
     \item Created React components and supporting infrastructure for an in-house Electron-based GUI library,
     enabling the transition from a legacy Qt-based library.
-    \item Built a Protobuf-to-TypeScript code generation CLI using TypeScript to automate the mapping of
+    \item Built a Protobuf-to-TypeScript code generation CLI using TypeScript to automate the mapping of the
     device register schema to UI controls, eliminating manual boilerplate and mapping errors.
   \end{resumeitems}
 
-  \entry{AI Solution Developer}{Jun 2024 -- Aug 2024}
+  \entry{AI Solution Developer}{}{Jun 2024 -- Aug 2024}
   \subentry{Microsoft Azure \& Artificial Intelligence Fundamentals, WE Accelerate}%
   {Waterloo, Ontario}
 
@@ -125,18 +127,18 @@
 
 % ----------------------------------------------------------------------------
 \newcommand{\SectionProjects}{%
-  \section{Projects}
+  \section{PROJECTS}
 
   \project{Event Registration Website for Community Lunar Celebration}%
-  {\iconlink[l]{\faGithub}{https://git.new/tet-viet-service}{Github}}
+  {\iconlink[l]{\faGithub}{https://git.new/tet-viet-service}{GitHub}}
 
   \begin{resumeitems}
-    \item Built full-stack, multilingual event registration web app using SolidJS and Google Apps Script,
-    enabling digitized registration process and zero-cost hosting.
+    \item Built a full-stack, multilingual event registration web app using SolidJS and Google Apps Script,
+    digitizing the registration process at zero hosting cost.
     \item Implemented secure registration and check-in process with automatic emails and QR code scanning for
     contactless check-in, handling \metric{over 200 registrations} on event day.
     \item Created a custom build/deploy pipeline (Vite plugin, yEnc compression, CLASP integration), reducing
-    payload size by \metric{\textasciitilde20--30\%} and flexible deployment.
+    payload size by \metric{\textasciitilde20--30\%} and enabling flexible deployment.
   \end{resumeitems}
 }
 

@@ -8,7 +8,7 @@
 %    \iconlink[l|r]{<icon>}{<url>}{<text>} hyperlink with a Font Awesome icon
 %    \linkmark                             small "opens elsewhere" mark
 %    \section{<title>}                     section heading + rule
-%    \entry{<left>}{<right>}               bold title / right-aligned date row
+%    \entry{<title>}{<links>}{<right>}      bold title / links / right-aligned date row
 %    \subentry{<left>}{<right>}            italic org / right-aligned location
 %    \project{<title>}{<links>}            "title | links" project heading
 %    \skill{<label>}{<items>}              "Label: items" line
@@ -31,9 +31,11 @@
 \RequirePackage{xcolor}
 \RequirePackage{etoolbox}
 \RequirePackage{xfp}                  % \fpeval, used to fit the name
+\RequirePackage{soul}                 % consistent text underlines
 \RequirePackage{lastpage}             % page count, reported to the build log
 \RequirePackage{refcount}             % expandable \getpagerefnumber
 \RequirePackage{needspace}            % keep a heading with its first lines
+\RequirePackage{atbegshi}             % optionally discard pages after the first
 \RequirePackage{fontawesome5}         % icon glyphs; no image files to ship
 \RequirePackage[hidelinks]{hyperref}
 
@@ -44,20 +46,24 @@
 %\begin{noindent}
 
 % --- Page ------------------------------------------------------------------
-\newlength{\resumemargin}      \setlength{\resumemargin}{50pt}    % all four sides
+\newlength{\resumemargin}      \setlength{\resumemargin}{40pt}    % all four sides
 
 % --- Lists -----------------------------------------------------------------
+
+\newlength{\resumecontentindent} \setlength{\resumecontentindent}{8pt} % section body indent
 \newlength{\resumelistindent} \setlength{\resumelistindent}{21pt} % text indent
 \newlength{\resumelabelwidth} \setlength{\resumelabelwidth}{7pt}  % bullet box
 \newlength{\resumelabelsep}   \setlength{\resumelabelsep}{7pt}    % bullet -> text
 \newcommand{\resumelabel}{\textbullet}                            % marker
 
 % --- Vertical rhythm -------------------------------------------------------
-\newlength{\resumerowsep}      \setlength{\resumerowsep}{4pt}     % between rows/bullets
-\newlength{\resumeblocksep}    \setlength{\resumeblocksep}{4pt}   % after a bullet list
-\newlength{\resumesectionsep}  \setlength{\resumesectionsep}{8pt} % above a section heading
-\newlength{\resumeruleafter}   \setlength{\resumeruleafter}{1pt}  % section rule -> body
-\newlength{\resumeheadsep}     \setlength{\resumeheadsep}{6pt}    % title block -> first section
+\newlength{\resumerowsep}      \setlength{\resumerowsep}{2pt}                % between rows/bullets
+\newlength{\resumesubentrysep} \setlength{\resumesubentrysep}{1pt}           % entry -> organization
+\newlength{\resumeentryrightindent} \setlength{\resumeentryrightindent}{4pt} % right-side entry inset
+\newlength{\resumeblocksep}    \setlength{\resumeblocksep}{6pt}              % after a bullet list
+\newlength{\resumesectionsep}  \setlength{\resumesectionsep}{2pt}            % above a section heading
+\newlength{\resumeruleafter}   \setlength{\resumeruleafter}{1pt}             % section rule -> body
+\newlength{\resumeheadsep}     \setlength{\resumeheadsep}{8pt}               % title block -> first section
 
 % --- Page breaking ---------------------------------------------------------
 % Lines of room an entry/project heading demands before it will start on a
@@ -66,9 +72,9 @@
 \newcommand{\resumeprojectkeep}{4}
 
 % --- Type sizes ------------------------------------------------------------
-\newlength{\resumeheadingsize} \setlength{\resumeheadingsize}{16pt} % section headings
+\newlength{\resumeheadingsize} \setlength{\resumeheadingsize}{12pt} % section headings
 \newlength{\resumenamesize}    \setlength{\resumenamesize}{32pt}    % name (start size if fitted)
-\newlength{\resumenamemax}     \setlength{\resumenamemax}{72pt}     % ceiling when fitted
+\newlength{\resumenamemax}     \setlength{\resumenamemax}{40pt}     % ceiling when fitted
 \newlength{\resumenamemin}     \setlength{\resumenamemin}{12pt}     % floor when fitted
 \newcommand{\resumeiconscale}{0.9}         % icon size, relative to text
 \newcommand{\resumeiconsep}{\,}            % gap between an icon and its text
@@ -108,6 +114,8 @@
 \raggedbottom
 \pagestyle{empty}
 \hypersetup{colorlinks=false, pdfborder={0 0 0}}
+\let\resume@href\href
+\renewcommand{\href}[2]{\resume@href{#1}{\ul{#2}}}
 
 % ============================================================================
 %  Build-time variables and flags
@@ -116,6 +124,16 @@
 % Defaults; build-vars.tex may \renewcommand these before \begin{document}.
 \providecommand{\buildvariant}{full}
 \providecommand{\builddate}{}
+\newbool{resume@firstpageonly}
+\newcommand{\firstpageonly}{\booltrue{resume@firstpageonly}}
+
+\AtBeginShipout{%
+  \ifbool{resume@firstpageonly}{%
+    \ifnum\value{page}>1\relax
+      \AtBeginShipoutDiscard
+    \fi
+  }{}%
+}
 
 \newcommand{\ifvariant}[3]{\ifdefstring{\buildvariant}{#1}{#2}{#3}}
 
@@ -138,7 +156,7 @@
 % below the contact icons so it reads as punctuation, not decoration.
 \newcommand{\resumelinkmarkscale}{0.7}
 \newcommand{\resumelinkmarkkern}{-0.09em} % hugs its word tighter than a contact icon
-\newcommand{\resumelinkmarkdrop}{0}    % optical nudge, as a fraction of cap height
+\newcommand{\resumelinkmarkdrop}{-0.08} % optical nudge, as a fraction of cap height
 \newlength{\resume@markcap}
 \newsavebox{\resume@markbox}
 \newcommand{\linkmark}{%
@@ -163,14 +181,19 @@
 \newcommand{\iconlink}[4][r]{%
   \begingroup
   \def\resume@side{#1}%
+  \def\resume@linktext{%
+    \ifx\relax#3\relax #4\else\href{#3}{#4}\fi
+  }%
   \def\resume@linkbody{%
     \ifdefstring{\resume@side}{l}{%
-      \ifx\relax#2\relax\else\resume@icon{#2}\resumeiconsep\fi #4%
+      \ifx\relax#2\relax\else\resume@icon{#2}\resumeiconsep\fi
+      \resume@linktext
     }{%
-      #4\ifx\relax#2\relax\else\resumeiconsep\resume@icon{#2}\fi
+      \resume@linktext
+      \ifx\relax#2\relax\else\resumeiconsep\resume@icon{#2}\fi
     }%
   }%
-  \ifx\relax#3\relax \resume@linkbody \else \href{#3}{\resume@linkbody}\fi
+  \resume@linkbody
   \endgroup
 }
 
@@ -182,7 +205,7 @@
   \settoheight{\resume@barht}{X}%
   \hspace{0.5em}%
   \raisebox{-0.1\resume@barht}{%
-    \textcolor{resumerulecolor}{\rule{1pt}{1.1\resume@barht}}%
+    \textcolor{resumerulecolor}{\rule{1pt}{1.3\resume@barht}}%
   }%
   \hspace{0.5em}%
   \endgroup
@@ -284,36 +307,63 @@
 % Sections: unnumbered heading with a full-width rule beneath.
 \setcounter{secnumdepth}{0}
 \titleformat{\section}
-{\bfseries\fontsize{\resumeheadingsize}{1.2\resumeheadingsize}\selectfont}
+{\fontsize{\resumeheadingsize}{1.2\resumeheadingsize}\selectfont}
 {}{0pt}{}
 [\vspace{\resumerulesep}\noindent\rule{\textwidth}{\resumerulewidth}]
 \titlespacing*{\section}{0pt}{\resumesectionsep}{\resumeruleafter}
 
 % Entry rows: left-aligned text with a right-aligned counterpart.
-\newcommand{\resume@row}[2]{\noindent#1\hfill#2\par\vspace{\resumerowsep}}
+\newcommand{\resume@row}[2]{%
+  \resume@rowwithrightindent{\resumeentryrightindent}{#1}{#2}%
+}
+\newcommand{\resume@rowwithrightindent}[3]{%
+  \begingroup
+  \leftskip=\resumecontentindent
+  \rightskip=#1
+  #2\hfill#3\par
+  \endgroup
+  \vspace{\resumerowsep}%
+}
 
 % An entry heading stranded at the foot of a page reads as a mistake, so demand
 % room for the heading, its \subentry and the first couple of bullets; if the
 % page cannot give that, the whole block moves to the next one.
 \newcommand{\resume@keep}[1]{\Needspace*{#1\baselineskip}}
-\newcommand{\entry}[2]{%
+\newcommand{\entry}[3]{%
   \resume@keep{\resumeentrykeep}%
-  \resume@row{\textbf{#1}}{\textbf{#2}}%
+  \resume@row{%
+    \textbf{#1}%
+    \ifx\relax#2\relax\else\resumeprojectsep #2\fi
+  }{#3}%
 }
 % Bound to the entry above it: never break between the two.
-\newcommand{\subentry}[2]{\nopagebreak\resume@row{\textit{#1}}{\textit{#2}}\nopagebreak}
+\newcommand{\subentry}[2]{%
+  \nopagebreak
+  \vspace{\dimexpr\resumesubentrysep-\resumerowsep\relax}%
+  \resume@rowwithrightindent{\resumeentryrightindent}{\textit{#1}}{\textit{#2}}%
+  \nopagebreak
+}
 
 \newcommand{\resumeprojectsep}{\resumebar}
 
 % \project{<title>}{<links>} — "title | links"; <links> may be empty.
 \newcommand{\project}[2]{%
   \resume@keep{\resumeprojectkeep}%
-  \noindent\textbf{#1}%
+  \begingroup
+  \leftskip=\resumecontentindent
+  \textbf{#1}%
   \ifx\relax#2\relax\else\resumeprojectsep #2\fi
-  \par\vspace{\resumerowsep}%
+  \par
+  \endgroup
+  \vspace{\resumerowsep}%
 }
 
-\newcommand{\skill}[2]{\noindent\textbf{#1:} #2\par\vspace{\resumerowsep}}
+\newcommand{\skill}[2]{%
+  \begingroup
+  \leftskip=\resumecontentindent
+  \textbf{#1:} #2\par
+  \endgroup
+}
 
 % List geometry lives in the lengths above; both list kinds are set from them,
 % so plain itemize and resumeitems can never drift apart.
@@ -333,7 +383,7 @@
 }
 
 \setlist[resumeitems]{
-  leftmargin=\resumelistindent,
+  leftmargin=\dimexpr\resumelistindent+\resumecontentindent\relax,
   labelwidth=\resumelabelwidth,
   labelsep=\resumelabelsep,
   labelindent=0pt,
