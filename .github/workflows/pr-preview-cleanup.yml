@@ -21,7 +21,7 @@ jobs:
       PAGES_BRANCH: gh-pages
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Remove this PR's preview
         run: |

@@ -37,7 +37,23 @@ on:
         description: 'Move Education to bottom of the résumé'
         type: boolean
         default: true
-
+      first_page_only:
+        description: 'Keep only the first PDF page'
+        type: boolean
+        default: false
+      page_budget:
+        description: 'Warn above this many pages; blank uses the repository default'
+        type: string
+        default: ''
+      engine:
+        description: 'TeX engine'
+        type: choice
+        options: [tectonic]
+        default: tectonic
+      date:
+        description: 'Build date (YYYY-MM-DD); blank uses today'
+        type: string
+        default: ''
 permissions:
   contents: read
 
@@ -60,14 +76,14 @@ jobs:
     needs: [format, lint]
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
 
       - name: Cache Tectonic bundle
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/tectonic-cache
           key: tectonic-bundle-${{ hashFiles('mise.lock', '**/*.tex', '**/*.sty') }}
@@ -81,18 +97,36 @@ jobs:
         run: |
           set -euo pipefail
           variant='${{ inputs.variant || 'all' }}'
-          skills='${{ inputs.skills_bottom == true && 1 || 0 }}'
-          education='${{ inputs.education_bottom == true && 1 || 0 }}'
-          echo "variant=$variant skills_bottom=$skills education_bottom=$education"
-          export SKILLS_BOTTOM="$skills" EDUCATION_BOTTOM="$education"
+          page_budget='${{ inputs.page_budget }}'
+          engine='${{ inputs.engine || 'tectonic' }}'
+          build_date='${{ inputs.date }}'
+          out_dir='build'
+          args=(--page-budget "${page_budget:-$PAGE_BUDGET}" --engine "$engine" --out "${out_dir:-build}")
+          if [ '${{ inputs.skills_bottom == true }}' = 'true' ]; then
+            args+=(--skills-bottom)
+          fi
+          if [ '${{ inputs.education_bottom == true }}' = 'true' ]; then
+            args+=(--education-bottom)
+          fi
+          if [ '${{ inputs.first_page_only == true }}' = 'true' ]; then
+            args+=(--first-page-only)
+          fi
+          if [ -n "$build_date" ]; then
+            args+=(--date "$build_date")
+          fi
+          printf 'variant=%s options:' "$variant"
+          printf ' %q' "${args[@]}"
+          printf '\n'
           if [ "$variant" = "all" ]; then
-            mise run all
+            for v in full short; do
+              mise exec -- ./mise-tasks/build --variant "$v" "${args[@]}"
+            done
           else
-            VARIANT="$variant" mise run build
+            mise exec -- ./mise-tasks/build --variant "$variant" "${args[@]}"
           fi
 
       - name: Upload PDFs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: resume-${{ github.sha }}
           path: |
@@ -104,9 +138,9 @@ jobs:
   format:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
 
@@ -116,9 +150,9 @@ jobs:
   lint:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           cache: true
 
@@ -160,9 +194,9 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: resume-${{ github.sha }}
           path: preview
@@ -233,9 +267,9 @@ jobs:
       PAGES_BRANCH: gh-pages
       HEAD_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: resume-${{ github.sha }}
           path: latest
@@ -274,9 +308,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: resume-${{ github.sha }}
           path: build
@@ -293,10 +327,9 @@ jobs:
         run: python3 .github/scripts/release_notes.py build notes.md
 
       - name: Publish rolling release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: latest
           name: Résumé — main @ ${{ github.sha }}
           body_path: notes.md
-          files: build/*.pdf
           make_latest: true

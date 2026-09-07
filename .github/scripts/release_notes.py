@@ -15,24 +15,23 @@ import cli
 from build_manifest import Build, env
 
 INTRO: Final = "Rolling build of `main`."
-DOWNLOAD_URL: Final = "{repo}/releases/download/latest/{file}"
+PREVIEW_URL: Final = "https://{owner}.github.io/{repo}/latest/"
 TABLE_HEADER: Final = (
     "| PDF | Variant | Section order | Pages | Size |",
     "|---|---|---|---|---|",
 )
 
 
-def downloads(builds: list[Build], repo: str) -> list[str]:
-    """A table of every published PDF, linked to its release asset."""
+def previews(builds: list[Build], preview: str) -> list[str]:
+    """A table of every PDF, with the full build available on the preview site."""
 
     def row(build: Build) -> str:
-        url = DOWNLOAD_URL.format(repo=repo, file=build.file)
         return (
-            f"| [{build.file}]({url}) | {build.variant.capitalize()} "
+            f"| {build.file} | {build.variant.capitalize()} "
             f"| {build.section_order} | {build.pages} | {build.size} |"
         )
 
-    return ["## Downloads", "", *TABLE_HEADER, *map(row, builds)]
+    return ["## Preview", "", f"[Open the latest preview website]({preview})", "", *TABLE_HEADER, *map(row, builds)]
 
 
 def provenance(builds: list[Build], repo: str) -> list[str]:
@@ -64,10 +63,12 @@ def main() -> None:
     args = cli.io_args(__doc__, source="build", output="notes.md")
     builds = cli.load_builds(args.source)
     repo = env("REPO_URL")
+    owner, name = repo.rstrip("/").rsplit("/", 1)
+    preview = PREVIEW_URL.format(owner=owner.rsplit("/", 1)[-1], repo=name)
 
     cli.write(
         args.output,
-        [INTRO, "", *downloads(builds, repo), "", *provenance(builds, repo), ""],
+        [INTRO, "", *previews(builds, preview), "", *provenance(builds, repo), ""],
         subject=f"from {len(builds)} manifest(s)",
     )
 

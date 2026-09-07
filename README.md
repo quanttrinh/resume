@@ -62,7 +62,7 @@ since re-staging it would sweep in the unstaged edits.
 
 ### Knobs
 
-Set as environment variables around the build task:
+Pass options to the build task, or set the equivalent environment variables:
 
 | Variable | Default | Effect |
 |---|---|---|
@@ -70,11 +70,13 @@ Set as environment variables around the build task:
 | `SKILLS_BOTTOM` | `0` | `1` moves Skills below Experience |
 | `EDUCATION_BOTTOM` | `0` | `1` moves Education below Experience |
 | `PAGE_BUDGET` | `1` | Warn above this many pages; `0` disables |
+| `FIRST_PAGE_ONLY` | `0` | `1` keeps only the first PDF page |
 | `ENGINE` | `tectonic` | LaTeX engine |
 
 ```sh
-mise run bottom                              # both sections last
-VARIANT=short SKILLS_BOTTOM=1 mise run build # combine freely
+mise run build -- --variant short --skills-bottom --education-bottom
+mise run build -- --variant full --first-page-only
+VARIANT=short SKILLS_BOTTOM=1 mise run build # environment variables still work
 ```
 
 Flags reach LaTeX through a generated `build-vars.tex`; the output name is

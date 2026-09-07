@@ -18,6 +18,15 @@ url_api = "https://api.github.com/repos/cmhughes/latexindent.pl/releases/assets/
 version = "tectonic@0.17.0"
 backend = "github:tectonic-typesetting/tectonic"
 
+[tools."github:tectonic-typesetting/tectonic"."platforms.macos-arm64"]
+checksum = "sha256:a3f1cac7c5678f01661a92212f58480ae3b0634115d880dbc59e2953ded45667"
+url = "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.17.0/tectonic-0.17.0-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/tectonic-typesetting/tectonic/releases/assets/490851834"
+
+[[tools."github:tectonic-typesetting/tectonic"]]
+version = "tectonic@0.17.0"
+backend = "github:tectonic-typesetting/tectonic"
+
 [tools."github:tectonic-typesetting/tectonic".options]
 asset_pattern = "tectonic-0.17.0-x86_64-unknown-linux-musl.tar.gz"
 
@@ -25,12 +34,3 @@ asset_pattern = "tectonic-0.17.0-x86_64-unknown-linux-musl.tar.gz"
 checksum = "sha256:8533d07f9ccbd7a65824b9e0459041bca34af1eb33daba48f59215593753a3b7"
 url = "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.17.0/tectonic-0.17.0-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/tectonic-typesetting/tectonic/releases/assets/490852003"
-
-[[tools."github:tectonic-typesetting/tectonic"]]
-version = "tectonic@0.17.0"
-backend = "github:tectonic-typesetting/tectonic"
-
-[tools."github:tectonic-typesetting/tectonic"."platforms.macos-arm64"]
-checksum = "sha256:a3f1cac7c5678f01661a92212f58480ae3b0634115d880dbc59e2953ded45667"
-url = "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.17.0/tectonic-0.17.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/tectonic-typesetting/tectonic/releases/assets/490851834"
